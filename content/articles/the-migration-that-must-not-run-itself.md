@@ -20,4 +20,4 @@ SDE II fix:
 
 Dual-write (app + migrate in the same boot) is how you get split-brain schema. The outbox pattern is the cousin of this idea on the event path. Same instinct: **one writer for the dangerous step.**
 
-sambodhi’s roadmap says `cmd/bodhi up` is the writer. Until that CLI is thick, I still will not call `Exec(createSQL)` from `ListenAndServe`.
+[sambodhi](https://github.com/anti-gravity-bit/sambodhi)’s `cmd/bodhi up` is the writer. I still will not call `Exec(createSQL)` from `ListenAndServe`.

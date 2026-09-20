@@ -65,13 +65,13 @@ a { color: var(--moss-dark); }
     </header>
     
     <article class="hero">
-      <div class="eyebrow">16 September 2026 · disposable-camera-api</div>
+      <div class="eyebrow">16 September 2026 · halide</div>
       <h1>Postgres must answer before traffic</h1>
-      <p>The disposable-camera API treats readiness as a ping, not a process that happens to be up.</p>
+      <p>Halide treats readiness as a ping, not a process that happens to be up.</p>
     </article>
     <div class="article-body">
       <h1>Postgres must answer before traffic</h1>
-<p>[disposable-camera-api](https://github.com/anti-gravity-bit/disposable-camera-api) is a chi + pgx service. The interesting part is not the camera metaphor. It is the startup clipboard.</p>
+<p><a href="https://github.com/anti-gravity-bit/halide">halide</a> is a chi + pgx service for a disposable-camera product. The interesting part is not the camera metaphor. It is the startup clipboard.</p>
 <p>Live (<code>/health</code>) means the process can talk HTTP. Ready means the pool pinged Postgres inside the connect timeout. Kubernetes should not send users to a replica that only completed <code>ListenAndServe</code>.</p>
 <p>I have watched a deploy “succeed” with the database still running migrations. The process was alive. Every request 500’d. A readiness probe tied to ping would have kept the old replica in rotation.</p>
 <p>The JSON envelope in <code>pkg/apiresponse</code> is the other small discipline: every handler returns the same shape. Clients and tests do not special-case a snowflake error.</p>

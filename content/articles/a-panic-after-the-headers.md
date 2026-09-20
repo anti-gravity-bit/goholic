@@ -22,6 +22,6 @@ Action I want in a review:
 - JSON helper records that it wrote.
 - Tests: panic before write → 500 JSON; panic after write → log, no double header.
 
-I put double-write protection on the bodhiApi roadmap on purpose. Until it lands, the honest answer in an interview is: **I know the hole, I would not pretend recover is a time machine.**
+[bodhiApi](https://github.com/anti-gravity-bit/bodhiApi) now refuses a second `JSON` or `Status` with `bodhiApi: response already written`. Recover still cannot unwrite bytes. The honest interview answer is the same: **I know the hole, I would not pretend recover is a time machine.**
 
 That answer is more senior than a clean demo that never panics.

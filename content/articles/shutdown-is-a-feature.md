@@ -3,7 +3,7 @@ title: Shutdown is a feature
 slug: shutdown-is-a-feature
 summary: Situation: SIGTERM during an upload. If you os.Exit, the client retries and you double-write. Drain, then close the pool.
 date: 2026-09-16
-project: disposable-camera-api
+project: halide
 kind: incident
 ---
 
@@ -18,7 +18,7 @@ SDE II shutdown:
 3. Close the pgx pool.
 4. Exit 0 if the drain finished, non-zero if you had to cut.
 
-This is the same story as bodhiApi’s graceful shutdown example, applied to a service with a database. Timeouts are part of the API contract. Ten seconds is a number you pick because the load balancer’s idle timeout is larger, not because it felt nice.
+This is the same story as [bodhiApi](https://github.com/anti-gravity-bit/bodhiApi)’s graceful shutdown example, applied to [halide](https://github.com/anti-gravity-bit/halide). Timeouts are part of the API contract. Ten seconds is a number you pick because the load balancer’s idle timeout is larger, not because it felt nice.
 
 If a request cannot finish in the drain window, make the handler **idempotent** (event id, unique constraint). Shutdown without idempotency is how you get duplicate photos in a “disposable” camera, which is a bad joke.
 

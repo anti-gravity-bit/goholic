@@ -13,8 +13,8 @@ I have used ORMs that “sync” the schema. I have also spent nights restoring 
 
 sambodhi is the opposite temperament. A struct with tags becomes a `Table`. `CreateTableSQL` returns a string. You look at the string. You put it in a revision file. The engine is just `database/sql`.
 
-The dialect object only knows how to quote names and placeholders. SQLite uses `?`. Postgres will use `$1` when that week of the roadmap lands. Identifier quoting doubles interior quotes so a hostile column name cannot walk out of the ident.
+The dialect object only knows how to quote names and placeholders. SQLite uses `?`. Postgres uses `$1`. Identifier quoting doubles interior quotes so a hostile column name cannot walk out of the ident.
 
-Auto-migrate is a demo feature. Production is a file with a version number and a recorded apply. I will not link a GitHub repo that is not public yet. The code lives in the sambodhi tree on this machine until it is.
+Auto-migrate is a demo feature. Production is a file with a version number and a recorded apply. [sambodhi](https://github.com/anti-gravity-bit/sambodhi) is public. `cmd/bodhi up` is the writer. The HTTP process still does not call `CreateTableSQL` for you.
 
 The package is named after my son. The technical rule is the same: do not hide what you are about to do.

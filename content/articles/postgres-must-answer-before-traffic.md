@@ -1,15 +1,15 @@
 ---
 title: Postgres must answer before traffic
 slug: postgres-must-answer-before-traffic
-summary: The disposable-camera API treats readiness as a ping, not a process that happens to be up.
+summary: Halide treats readiness as a ping, not a process that happens to be up.
 date: 2026-09-16
-project: disposable-camera-api
+project: halide
 kind: experience
 ---
 
 # Postgres must answer before traffic
 
-[disposable-camera-api](https://github.com/anti-gravity-bit/disposable-camera-api) is a chi + pgx service. The interesting part is not the camera metaphor. It is the startup clipboard.
+[halide](https://github.com/anti-gravity-bit/halide) is a chi + pgx service for a disposable-camera product. The interesting part is not the camera metaphor. It is the startup clipboard.
 
 Live (`/health`) means the process can talk HTTP. Ready means the pool pinged Postgres inside the connect timeout. Kubernetes should not send users to a replica that only completed `ListenAndServe`.
 

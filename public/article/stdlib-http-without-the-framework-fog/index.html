@@ -71,7 +71,7 @@ a { color: var(--moss-dark); }
     </article>
     <div class="article-body">
       <h1>stdlib HTTP without the framework fog</h1>
-<p>I keep [bodhiApi](https://github.com/anti-gravity-bit/bodhiApi) public because I got tired of not being able to point at the line that turns an <code>error</code> into a JSON 500.</p>
+<p>I keep <a href="https://github.com/anti-gravity-bit/bodhiApi">bodhiApi</a> public because I got tired of not being able to point at the line that turns an <code>error</code> into a JSON 500.</p>
 <p>Gin and Chi are fine. They are also a lot of source to read at midnight. bodhiApi is a linear-scan router on <code>net/http</code>. With twenty routes a trie does not save the p99. Readable matching rules do.</p>
 <p>The habit I care about: <strong>unknown errors become generic 500s</strong>. <code>err.Error()</code> is for logs, not for clients. I have seen a Postgres connection string leak in a hurry. The framework should make the safe path the default.</p>
 <p>If you open the repo, start at <code>api.go</code>, then <code>internal/core/app</code>, then middleware. That is the tour I would give a tired teammate. The rest of the README is for people who will never work here and still need to trust the code.</p>

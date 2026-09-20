@@ -15,4 +15,4 @@ Most days the work is REST, PostgreSQL, auth, and the boring bits that keep p99 
 
 A blog is a tiny company. If the folder names tell you the architecture, the design is doing its job. These notes are that idea with the volume turned down: failure modes, SQL I would not hide, cookies I will not oversell.
 
-bodhiApi is already on GitHub. The rest of the house is still getting its rooms labelled. I will not pretend a repo is public when it is not.
+The public rooms are on GitHub: [bodhiApi](https://github.com/anti-gravity-bit/bodhiApi), [sambodhi](https://github.com/anti-gravity-bit/sambodhi), [goholic](https://github.com/anti-gravity-bit/goholic), [halide](https://github.com/anti-gravity-bit/halide). I will not link a repo that is still private.

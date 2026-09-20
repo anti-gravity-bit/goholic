@@ -65,7 +65,7 @@ a { color: var(--moss-dark); }
     </header>
     
     <article class="hero">
-      <div class="eyebrow">16 September 2026 · disposable-camera-api</div>
+      <div class="eyebrow">16 September 2026 · halide</div>
       <h1>Shutdown is a feature</h1>
       <p>Situation: SIGTERM during an upload. If you os.Exit, the client retries and you double-write. Drain, then close the pool.</p>
     </article>
@@ -77,7 +77,7 @@ a { color: var(--moss-dark); }
 <p>2. Wait up to <code>SHUTDOWN_TIMEOUT</code> for in-flight requests.</p>
 <p>3. Close the pgx pool.</p>
 <p>4. Exit 0 if the drain finished, non-zero if you had to cut.</p>
-<p>This is the same story as bodhiApi’s graceful shutdown example, applied to a service with a database. Timeouts are part of the API contract. Ten seconds is a number you pick because the load balancer’s idle timeout is larger, not because it felt nice.</p>
+<p>This is the same story as <a href="https://github.com/anti-gravity-bit/bodhiApi">bodhiApi</a>’s graceful shutdown example, applied to <a href="https://github.com/anti-gravity-bit/halide">halide</a>. Timeouts are part of the API contract. Ten seconds is a number you pick because the load balancer’s idle timeout is larger, not because it felt nice.</p>
 <p>If a request cannot finish in the drain window, make the handler <strong>idempotent</strong> (event id, unique constraint). Shutdown without idempotency is how you get duplicate photos in a “disposable” camera, which is a bad joke.</p>
 <p>I want the interview to stay on that sequence, not on Firebase product trivia.</p>
 

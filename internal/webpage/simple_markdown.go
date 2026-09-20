@@ -13,6 +13,7 @@ import (
 // - a line that starts with "- " is a list item
 // - text between **stars** is strong
 // - text between `ticks` is code
+// - [label](https://...) becomes a link; only http(s) URLs
 // - blank lines split paragraphs
 func TurnMarkdownIntoSafeHtml(articleBodyMarkdown string) string {
 	trimmedMarkdown := strings.ReplaceAll(articleBodyMarkdown, "\r\n", "\n")
@@ -86,7 +87,52 @@ func decorateInlineMarkdown(rawLine string) string {
 	escapedLine := html.EscapeString(rawLine)
 	escapedLine = replaceWrappedMarks(escapedLine, "**", "<strong>", "</strong>")
 	escapedLine = replaceWrappedMarks(escapedLine, "`", "<code>", "</code>")
+	escapedLine = replaceMarkdownLinks(escapedLine)
 	return escapedLine
+}
+
+func replaceMarkdownLinks(escapedLine string) string {
+	var rebuilt strings.Builder
+	cursor := 0
+	for cursor < len(escapedLine) {
+		openBracket := strings.Index(escapedLine[cursor:], "[")
+		if openBracket < 0 {
+			rebuilt.WriteString(escapedLine[cursor:])
+			break
+		}
+		openBracket += cursor
+		closeLabel := strings.Index(escapedLine[openBracket:], "](")
+		if closeLabel < 0 {
+			rebuilt.WriteString(escapedLine[cursor:])
+			break
+		}
+		closeLabel += openBracket
+		closeURL := strings.Index(escapedLine[closeLabel+2:], ")")
+		if closeURL < 0 {
+			rebuilt.WriteString(escapedLine[cursor:])
+			break
+		}
+		closeURL += closeLabel + 2
+		label := escapedLine[openBracket+1 : closeLabel]
+		url := escapedLine[closeLabel+2 : closeURL]
+		if !httpURL(url) {
+			rebuilt.WriteString(escapedLine[cursor : closeURL+1])
+			cursor = closeURL + 1
+			continue
+		}
+		rebuilt.WriteString(escapedLine[cursor:openBracket])
+		rebuilt.WriteString(`<a href="`)
+		rebuilt.WriteString(url)
+		rebuilt.WriteString(`">`)
+		rebuilt.WriteString(label)
+		rebuilt.WriteString(`</a>`)
+		cursor = closeURL + 1
+	}
+	return rebuilt.String()
+}
+
+func httpURL(url string) bool {
+	return strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")
 }
 
 func replaceWrappedMarks(

@@ -81,16 +81,6 @@ a { color: var(--moss-dark); }
       <p>Situation: two app replicas boot and both try to CREATE TABLE. Visible SQL is not enough if apply is not exclusive.</p>
     </article>
 <article class="article-card">
-      <div class="eyebrow">19 September 2026 · envlock</div>
-      <h2><a href="/article/secrets-that-still-work-if-the-cli-dies/">Secrets that still work if the CLI dies</a></h2>
-      <p>envlock encrypts .env with age and puts ciphertext in a bucket I already pay for. The break-glass path is stock age -d.</p>
-    </article>
-<article class="article-card">
-      <div class="eyebrow">19 September 2026 · envlock</div>
-      <h2><a href="/article/when-the-identity-file-is-gone/">When the identity file is gone</a></h2>
-      <p>Situation: laptop wiped, ciphertext still in the bucket. envlock cannot help you if you never copied the age identity.</p>
-    </article>
-<article class="article-card">
       <div class="eyebrow">18 September 2026 · bodhiApi</div>
       <h2><a href="/article/a-panic-after-the-headers/">A panic after the headers</a></h2>
       <p>Situation: the handler wrote 200 and then panics. Recovery middleware cannot unwrite bytes. Here is how I talk about it.</p>
@@ -111,12 +101,12 @@ a { color: var(--moss-dark); }
       <p>If a stranger can read the folder names and guess the architecture, the design is doing its job.</p>
     </article>
 <article class="article-card">
-      <div class="eyebrow">16 September 2026 · disposable-camera-api</div>
+      <div class="eyebrow">16 September 2026 · halide</div>
       <h2><a href="/article/postgres-must-answer-before-traffic/">Postgres must answer before traffic</a></h2>
-      <p>The disposable-camera API treats readiness as a ping, not a process that happens to be up.</p>
+      <p>Halide treats readiness as a ping, not a process that happens to be up.</p>
     </article>
 <article class="article-card">
-      <div class="eyebrow">16 September 2026 · disposable-camera-api</div>
+      <div class="eyebrow">16 September 2026 · halide</div>
       <h2><a href="/article/shutdown-is-a-feature/">Shutdown is a feature</a></h2>
       <p>Situation: SIGTERM during an upload. If you os.Exit, the client retries and you double-write. Drain, then close the pool.</p>
     </article>

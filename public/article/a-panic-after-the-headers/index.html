@@ -81,7 +81,7 @@ a { color: var(--moss-dark); }
 <li>JSON helper records that it wrote.</li>
 <li>Tests: panic before write → 500 JSON; panic after write → log, no double header.</li>
 </ul>
-<p>I put double-write protection on the bodhiApi roadmap on purpose. Until it lands, the honest answer in an interview is: <strong>I know the hole, I would not pretend recover is a time machine.</strong></p>
+<p><a href="https://github.com/anti-gravity-bit/bodhiApi">bodhiApi</a> now refuses a second <code>JSON</code> or <code>Status</code> with <code>bodhiApi: response already written</code>. Recover still cannot unwrite bytes. The honest interview answer is the same: <strong>I know the hole, I would not pretend recover is a time machine.</strong></p>
 <p>That answer is more senior than a clean demo that never panics.</p>
 
     </div>
