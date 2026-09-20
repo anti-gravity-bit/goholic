@@ -72,9 +72,9 @@ a { color: var(--moss-dark); }
     <div class="article-body">
       <h1>SQL you can file in git</h1>
 <p>I have used ORMs that “sync” the schema. I have also spent nights restoring a column that sync thought was unused.</p>
-<p>[sambodhi](https://github.com/anti-gravity-bit/sambodhi) is the opposite temperament. A struct with <code>sambodhi</code> tags becomes a <code>Table</code>. <code>CreateTableSQL</code> returns a string. You look at the string. You put it in a revision file. The engine is just <code>database/sql</code>.</p>
-<p>The dialect object only knows how to quote names and placeholders. SQLite uses <code>?</code>. Postgres will use <code>$1</code> when that week of the roadmap lands. Identifier quoting doubles interior quotes so a hostile column name cannot escape the ident.</p>
-<p>That is enough for an SDE II conversation about <strong>migrations as reviewable artifacts</strong>. Auto-migrate is a demo feature. Production is a file with a version number and a recorded apply.</p>
+<p>sambodhi is the opposite temperament. A struct with tags becomes a <code>Table</code>. <code>CreateTableSQL</code> returns a string. You look at the string. You put it in a revision file. The engine is just <code>database/sql</code>.</p>
+<p>The dialect object only knows how to quote names and placeholders. SQLite uses <code>?</code>. Postgres will use <code>$1</code> when that week of the roadmap lands. Identifier quoting doubles interior quotes so a hostile column name cannot walk out of the ident.</p>
+<p>Auto-migrate is a demo feature. Production is a file with a version number and a recorded apply. I will not link a GitHub repo that is not public yet. The code lives in the sambodhi tree on this machine until it is.</p>
 <p>The package is named after my son. The technical rule is the same: do not hide what you are about to do.</p>
 
     </div>

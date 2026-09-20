@@ -9,10 +9,10 @@ kind: experience
 
 # From Kolkata with Go
 
-I am Abir Sarkar, a Software Engineer II on the backend side, in Kolkata. Open to Bengaluru, Hyderabad, Gurugram, or India-hired remote.
+I am Abir Sarkar. I write Go backends in Kolkata.
 
-Most days I work on Go services, PostgreSQL, auth, and the boring work that keeps p99 honest.
+Most days the work is REST, PostgreSQL, auth, and the boring bits that keep p99 honest. Goholic is the public notebook for the sentences that do not fit on a one-page resume.
 
-Goholic is the public notebook. The five GitHub repos it points at are the ones I will defend in an interview: bodhiApi, envlock, sambodhi, this engine, and the disposable-camera API.
+A blog is a tiny company. If the folder names tell you the architecture, the design is doing its job. These notes are that idea with the volume turned down: failure modes, SQL I would not hide, cookies I will not oversell.
 
-If you want the one-page resume, you already know where to look. This site is for the sentences that do not fit on that page: failure modes, the SQL I would not hide, and the cookies I will not oversell.
+bodhiApi is already on GitHub. The rest of the house is still getting its rooms labelled. I will not pretend a repo is public when it is not.

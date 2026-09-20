@@ -23,4 +23,4 @@ SDE II response:
 
 If I needed revoke-one-user, I would add a `token_id` in the cookie and a tiny sqlite table of revoked ids. I have not, yet. The honest README says so.
 
-Interviews punish people who say “JWT is stateless” and then cannot name the logout hole. This post is that name.
+People say “JWT is stateless” and then cannot name the logout hole. This post is that name.
