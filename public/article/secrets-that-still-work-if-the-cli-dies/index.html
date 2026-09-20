@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secrets that still work if the CLI dies · Goholic</title>
+  <style>
+:root {
+  --ink: #102017;
+  --paper: #f4efe4;
+  --card: #fffaf1;
+  --moss: #1f6b4a;
+  --moss-dark: #154a33;
+  --line: #d7ccb8;
+  --mute: #5c6b62;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  background: radial-gradient(1200px 500px at 10% -10%, #e7f3ea 0%, transparent 55%), var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+}
+a { color: var(--moss-dark); }
+.site-shell { max-width: 920px; margin: 0 auto; padding: 28px 20px 80px; }
+.site-header, .site-footer {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+}
+.site-wordmark {
+  font-size: 28px; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; color: var(--ink);
+}
+.site-nav { display: flex; gap: 16px; font-size: 15px; }
+.eyebrow { color: var(--moss); letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
+.hero { margin: 36px 0 28px; }
+.hero h1 { font-size: 42px; line-height: 1.15; margin: 8px 0; }
+.hero p { font-size: 20px; color: var(--mute); max-width: 640px; }
+.article-card, .panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+.article-card h2 { margin: 6px 0 8px; }
+.meta { color: var(--mute); font-size: 14px; }
+.article-body { font-size: 19px; }
+.article-body code { background: #efe6d4; padding: 0 5px; border-radius: 6px; }
+.article-body a { overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .hero h1 { font-size: 32px; }
+  .site-header { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="site-wordmark" href="/">Goholic</a>
+      <nav class="site-nav">
+        <a href="/">Stories</a>
+        <a href="https://github.com/anti-gravity-bit">GitHub</a>
+        <a href="https://linkedin.com/in/abir-sarkar-dev">LinkedIn</a>
+      </nav>
+    </header>
+    
+    <article class="hero">
+      <div class="eyebrow">19 September 2026 · envlock</div>
+      <h1>Secrets that still work if the CLI dies</h1>
+      <p>envlock encrypts .env with age and puts ciphertext in a bucket I already pay for. The break-glass path is stock age -d.</p>
+    </article>
+    <div class="article-body">
+      <h1>Secrets that still work if the CLI dies</h1>
+<p>I do not want a SaaS to hold production env files. I also do not want a clever tool that only I can decrypt.</p>
+<p>[envlock](https://github.com/anti-gravity-bit/envlock) encrypts with [age](https://age-encryption.org). The object in Spaces, Linode, S3, or R2 is ciphertext. Identity lives in <code>~/.envlock/identity.txt</code> mode 0600. If I delete the CLI tomorrow, <code>age -d</code> still opens the file.</p>
+<p>That is the SDE II design constraint: <strong>tools must fail open for the owner and fail closed for everyone else.</strong></p>
+<p><code>run --no-disk</code> is the other half. Decrypt into the child environment. Do not leave a plaintext <code>.env</code> on a build agent.</p>
+<p>The stores are boring on purpose. One S3-compatible driver. Endpoints documented in <code>docs/stores.md</code>. Live tests gated on env so CI never needs my keys.</p>
+<p>If you are a hiring manager and you only click one file, click the doctor command. A secrets tool that cannot tell you what is missing is theatre.</p>
+
+    </div>
+
+    <footer class="site-footer" style="margin-top:48px;color:var(--mute);font-size:14px;">
+      <div>Abir Sarkar · Software Engineer II · Backend (Go)</div>
+      <div>Kolkata, India</div>
+    </footer>
+  </div>
+</body>
+</html>

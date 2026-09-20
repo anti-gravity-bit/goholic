@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Abir Sarkar · stories · Goholic</title>
+  <style>
+:root {
+  --ink: #102017;
+  --paper: #f4efe4;
+  --card: #fffaf1;
+  --moss: #1f6b4a;
+  --moss-dark: #154a33;
+  --line: #d7ccb8;
+  --mute: #5c6b62;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  background: radial-gradient(1200px 500px at 10% -10%, #e7f3ea 0%, transparent 55%), var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+}
+a { color: var(--moss-dark); }
+.site-shell { max-width: 920px; margin: 0 auto; padding: 28px 20px 80px; }
+.site-header, .site-footer {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+}
+.site-wordmark {
+  font-size: 28px; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; color: var(--ink);
+}
+.site-nav { display: flex; gap: 16px; font-size: 15px; }
+.eyebrow { color: var(--moss); letter-spacing: 0.12em; text-transform: uppercase; font-size: 12px; }
+.hero { margin: 36px 0 28px; }
+.hero h1 { font-size: 42px; line-height: 1.15; margin: 8px 0; }
+.hero p { font-size: 20px; color: var(--mute); max-width: 640px; }
+.article-card, .panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+.article-card h2 { margin: 6px 0 8px; }
+.meta { color: var(--mute); font-size: 14px; }
+.article-body { font-size: 19px; }
+.article-body code { background: #efe6d4; padding: 0 5px; border-radius: 6px; }
+.article-body a { overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .hero h1 { font-size: 32px; }
+  .site-header { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="site-wordmark" href="/">Goholic</a>
+      <nav class="site-nav">
+        <a href="/">Stories</a>
+        <a href="https://github.com/anti-gravity-bit">GitHub</a>
+        <a href="https://linkedin.com/in/abir-sarkar-dev">LinkedIn</a>
+      </nav>
+    </header>
+    
+    <section class="hero">
+      <div class="eyebrow">https://goholic.in</div>
+      <h1>Abir Sarkar</h1>
+      <p>Notes from a Go backend engineer who likes clean services, honest latency, and small working programs.</p>
+    </section>
+    <div id="article-card-list">
+    <article class="article-card">
+      <div class="eyebrow">20 September 2026 · sambodhi</div>
+      <h2><a href="/article/sql-you-can-file-in-git/">SQL you can file in git</a></h2>
+      <p>Sambodhi is an ORM that prints CREATE TABLE instead of mutating production behind your back.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">20 September 2026 · sambodhi</div>
+      <h2><a href="/article/the-migration-that-must-not-run-itself/">The migration that must not run itself</a></h2>
+      <p>Situation: two app replicas boot and both try to CREATE TABLE. Visible SQL is not enough if apply is not exclusive.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">19 September 2026 · envlock</div>
+      <h2><a href="/article/secrets-that-still-work-if-the-cli-dies/">Secrets that still work if the CLI dies</a></h2>
+      <p>envlock encrypts .env with age and puts ciphertext in a bucket I already pay for. The break-glass path is stock age -d.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">19 September 2026 · envlock</div>
+      <h2><a href="/article/when-the-identity-file-is-gone/">When the identity file is gone</a></h2>
+      <p>Situation: laptop wiped, ciphertext still in the bucket. envlock cannot help you if you never copied the age identity.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">18 September 2026 · bodhiApi</div>
+      <h2><a href="/article/a-panic-after-the-headers/">A panic after the headers</a></h2>
+      <p>Situation: the handler wrote 200 and then panics. Recovery middleware cannot unwrite bytes. Here is how I talk about it.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">18 September 2026 · bodhiApi</div>
+      <h2><a href="/article/stdlib-http-without-the-framework-fog/">stdlib HTTP without the framework fog</a></h2>
+      <p>Why I keep a small Go HTTP toolkit in public, and what SDE II interviews actually test when they say “just use Gin.”</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">17 September 2026 · goholic</div>
+      <h2><a href="/article/hmac-cookies-are-not-a-session-store/">HMAC cookies are not a session store</a></h2>
+      <p>Situation: someone copies the writer cookie. Expiry and HMAC are the whole defense. There is no server-side session table to revoke.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">17 September 2026 · goholic</div>
+      <h2><a href="/article/packages-should-tell-the-story/">Packages should tell the story</a></h2>
+      <p>If a stranger can read the folder names and guess the architecture, the design is doing its job.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">16 September 2026 · disposable-camera-api</div>
+      <h2><a href="/article/postgres-must-answer-before-traffic/">Postgres must answer before traffic</a></h2>
+      <p>The disposable-camera API treats readiness as a ping, not a process that happens to be up.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">16 September 2026 · disposable-camera-api</div>
+      <h2><a href="/article/shutdown-is-a-feature/">Shutdown is a feature</a></h2>
+      <p>Situation: SIGTERM during an upload. If you os.Exit, the client retries and you double-write. Drain, then close the pool.</p>
+    </article>
+<article class="article-card">
+      <div class="eyebrow">15 September 2026 · goholic</div>
+      <h2><a href="/article/from-kolkata-with-go/">From Kolkata with Go</a></h2>
+      <p>A short hello from Abir Sarkar, Software Engineer II on the backend side.</p>
+    </article>
+
+    </div>
+
+    <footer class="site-footer" style="margin-top:48px;color:var(--mute);font-size:14px;">
+      <div>Abir Sarkar · Software Engineer II · Backend (Go)</div>
+      <div>Kolkata, India</div>
+    </footer>
+  </div>
+</body>
+</html>

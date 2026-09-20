@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Goholic · architecture &amp; gaps</title>
+  <style>
+    :root {
+      --ink: #102017;
+      --paper: #f3eee4;
+      --card: #fffaf1;
+      --moss: #1f6b4a;
+      --moss-dark: #154a33;
+      --clay: #c45c26;
+      --line: #d7ccb8;
+      --mute: #5c6b62;
+      --danger: #9b2c2c;
+      --ok: #1b5e3b;
+      --warn: #8a5a12;
+      --chip: #efe6d4;
+      --nav: #0d1a13;
+      --code: #1a2420;
+      --shadow: 0 12px 40px rgba(16, 32, 23, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      background:
+        radial-gradient(1100px 480px at 8% -8%, #e4f1e8 0%, transparent 55%),
+        var(--paper);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    a { color: var(--moss-dark); }
+    code, kbd, .mono {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.86em;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+    nav.side {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      background: var(--nav);
+      color: #e8f2ec;
+      padding: 28px 18px 40px;
+    }
+    nav.side .mark {
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: #9dccb4;
+      margin-bottom: 6px;
+    }
+    nav.side h1 {
+      font-size: 22px;
+      margin: 0 0 22px;
+      font-weight: 600;
+    }
+    nav.side a {
+      display: block;
+      color: #cfe0d6;
+      text-decoration: none;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 14.5px;
+    }
+    nav.side a:hover, nav.side a.active { background: #1c3328; color: #fff; }
+    nav.side .hint {
+      margin-top: 28px;
+      font-size: 12px;
+      color: #8aa394;
+      padding: 0 10px;
+    }
+    main { padding: 36px 48px 96px; max-width: 1080px; }
+    .eyebrow {
+      color: var(--moss);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    h2 { font-size: 34px; line-height: 1.15; margin: 8px 0 12px; }
+    h3 { font-size: 22px; margin: 28px 0 10px; }
+    p.lead { font-size: 20px; color: var(--mute); max-width: 720px; }
+    section { margin: 56px 0; }
+    .card, .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .stat { padding: 16px 18px; }
+    .stat b { display: block; font-size: 28px; }
+    .stat span { color: var(--mute); font-size: 14px; }
+    .rooms {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .room-map { display: grid; gap: 8px; }
+    .room {
+      text-align: left;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+    }
+    .room small { display: block; color: var(--mute); font-size: 13px; }
+    .room[aria-pressed="true"] {
+      border-color: var(--moss);
+      background: #e7f3ea;
+      box-shadow: inset 3px 0 0 var(--moss);
+    }
+    .room-detail h3 { margin-top: 0; }
+    .room-detail pre {
+      background: var(--code);
+      color: #e8f2ec;
+      padding: 14px 16px;
+      border-radius: 12px;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; }
+    .chip {
+      border: 1px solid var(--line);
+      background: var(--chip);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .chip[aria-pressed="true"] { background: var(--moss); color: #fff; border-color: var(--moss); }
+    .flow-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .flow-tabs button {
+      font: inherit;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    .flow-tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+    .steps { display: grid; gap: 10px; }
+    .step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+    .step .n {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--moss); color: #fff;
+      display: grid; place-items: center; font-weight: 700;
+    }
+    .step.dim { opacity: 0.38; }
+    .row-actions { display: flex; gap: 8px; margin-top: 12px; }
+    button.primary, .button {
+      background: var(--moss); color: #fff; border: 0;
+      border-radius: 999px; padding: 9px 16px; cursor: pointer; font: inherit;
+    }
+    button.quiet {
+      background: transparent; border: 1px solid var(--line);
+      border-radius: 999px; padding: 9px 16px; cursor: pointer; font: inherit;
+    }
+    table.routes, table.gaps {
+      width: 100%; border-collapse: collapse; background: #fff;
+      border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+    }
+    table.routes th, table.routes td,
+    table.gaps th, table.gaps td {
+      text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line);
+      vertical-align: top; font-size: 15px;
+    }
+    table.routes th, table.gaps th { background: #efe8d8; font-size: 13px; letter-spacing: 0.04em; }
+    .pill {
+      display: inline-block; border-radius: 999px;
+      padding: 2px 10px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .p-ship { background: #f8d7d4; color: var(--danger); }
+    .p-product { background: #f3e4d4; color: var(--clay); }
+    .p-arch { background: #d9f0e2; color: var(--ok); }
+    .p-oss { background: #e4eaf3; color: #274472; }
+    .gap {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 16px;
+      padding: 14px 16px 14px 44px;
+      position: relative;
+      margin-bottom: 10px;
+    }
+    .gap input[type="checkbox"] {
+      position: absolute; left: 14px; top: 18px; width: 18px; height: 18px;
+    }
+    .gap.done { opacity: 0.55; text-decoration: line-through; text-decoration-color: var(--line); }
+    .gap h4 { margin: 0 0 6px; font-size: 17px; text-decoration: none; }
+    .gap p { margin: 0 0 8px; color: var(--mute); }
+    .where { font-size: 13px; color: var(--moss-dark); }
+    .search {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+      border-radius: 12px; font: inherit; background: #fff; margin-bottom: 12px;
+    }
+    .slice {
+      border-left: 4px solid var(--moss);
+      padding: 4px 0 4px 14px;
+      margin: 0 0 18px;
+    }
+    .slice h4 { margin: 0 0 4px; }
+    .mermaid-fake {
+      display: grid; gap: 8px; justify-items: center; padding: 8px 0 4px;
+    }
+    .box {
+      border: 1px solid var(--line); background: #fff; border-radius: 12px;
+      padding: 10px 16px; min-width: 220px; text-align: center;
+    }
+    .box.iface { border-style: dashed; background: #f7faf7; }
+    .arrow { color: var(--mute); font-size: 18px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 520px; }
+    footer.site { color: var(--mute); font-size: 14px; margin-top: 48px; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav.side { position: relative; height: auto; }
+      main { padding: 24px 18px 72px; }
+      .rooms, .grid-2, .grid-3, .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="side" aria-label="Sections">
+      <div class="mark">goholic.in</div>
+      <h1>Architecture</h1>
+      <a href="#overview">Overview</a>
+      <a href="#rooms">The rooms</a>
+      <a href="#flows">Request flows</a>
+      <a href="#http">HTTP map</a>
+      <a href="#data">Data &amp; markdown</a>
+      <a href="#tests">What tests prove</a>
+      <a href="#gaps">Gap register</a>
+      <a href="#slices">Build next</a>
+      <a href="#edit">Where to edit</a>
+      <p class="hint">Click a room. Step a flow. Tick gaps — they stick in this browser. File lives at <span class="mono">docs/architecture.html</span>.</p>
+    </nav>
+
+    <main>
+      <section id="overview">
+        <div class="eyebrow">One binary · one sqlite file · HTMX pages</div>
+        <h2>Goholic is a house with named rooms.</h2>
+        <p class="lead">
+          A reader never talks to sqlite. A writer never talks to HTML templates
+          from the librarian. Each package has one job. That is the whole architecture.
+          Module <code>github.com/anti-gravity-bit/goholic</code>, entry
+          <code>cmd/goholic-web-server</code>.
+        </p>
+        <div class="grid-3" style="margin-top:24px;">
+          <div class="card stat"><b>10</b><span>packages (9 internal + cmd)</span></div>
+          <div class="card stat"><b>16</b><span>tests, all passing</span></div>
+          <div class="card stat"><b>28</b><span>gaps tracked below</span></div>
+        </div>
+        <p style="margin-top:18px;color:var(--mute);">
+          Startup: read env → open sqlite cabinet → hire librarian → plant seed stories
+          if empty → mint writer passport → bind routes on the default mux →
+          <code>ListenAndServe</code>. No Node build. Templates and CSS are Go string constants.
+        </p>
+      </section>
+
+      <section id="rooms">
+        <div class="eyebrow">Dependency direction</div>
+        <h2>Click a room</h2>
+        <p>Browser and HTMX stop at <code>webpage</code>. Storage hides behind <code>ArticleShelf</code>. The librarian is the only one who knows house rules (draft / publish / hide / search).</p>
+        <div class="mermaid-fake" aria-hidden="true">
+          <div class="box">Browser + HTMX 2.0.4 (unpkg)</div>
+          <div class="arrow">↓</div>
+          <div class="box">webpage · writerpassport · websiteidentity</div>
+          <div class="arrow">↓</div>
+          <div class="box">articlelibrarian + wallclock</div>
+          <div class="arrow">↓</div>
+          <div class="box iface">articleshelf.ArticleShelf</div>
+          <div class="arrow">↓</div>
+          <div class="split">
+            <div class="box">sqlitearticleshelf</div>
+            <div class="box">memoryarticleshelf</div>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="box">article (entity + slug rules)</div>
+        </div>
+        <div class="rooms" style="margin-top:22px;">
+          <div class="room-map" id="room-buttons"></div>
+          <div class="panel room-detail" id="room-detail"></div>
+        </div>
+      </section>
+
+      <section id="flows">
+        <div class="eyebrow">What happens on one request</div>
+        <h2>Walk a path</h2>
+        <div class="flow-tabs" id="flow-tabs"></div>
+        <div class="steps" id="flow-steps"></div>
+        <div class="row-actions">
+          <button class="quiet" id="flow-prev" type="button">Previous</button>
+          <button class="primary" id="flow-next" type="button">Next step</button>
+        </div>
+      </section>
+
+      <section id="http">
+        <div class="eyebrow">Default ServeMux</div>
+        <h2>HTTP map</h2>
+        <p>Bound in <code>webpage.BindRoutesToDefaultServeMux</code>. Prefix <code>/article/</code> and <code>/writer/article/</code> are parsed by hand (no chi/gorilla).</p>
+        <table class="routes">
+          <thead>
+            <tr><th>Method</th><th>Path</th><th>Who</th><th>Does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/</code> <code>?q=</code></td><td>reader</td><td>Landing + HTMX search swap of <code>#article-card-list</code></td></tr>
+            <tr><td>GET</td><td><code>/article/{slug}</code></td><td>reader</td><td>Published story only; drafts 404</td></tr>
+            <tr><td>GET/POST</td><td><code>/writer/login</code></td><td>writer</td><td>Form; bcrypt + HMAC cookie</td></tr>
+            <tr><td>POST</td><td><code>/writer/logout</code></td><td>writer</td><td>Clears cookie (MaxAge -1)</td></tr>
+            <tr><td>GET</td><td><code>/writer/dashboard?edit=</code></td><td>cookie</td><td>List + write/rewrite form</td></tr>
+            <tr><td>POST</td><td><code>/writer/article</code></td><td>cookie</td><td>New draft</td></tr>
+            <tr><td>POST</td><td><code>/writer/article/{slug}</code></td><td>cookie</td><td>Rewrite body/title/summary (slug frozen)</td></tr>
+            <tr><td>POST</td><td><code>/writer/article/{slug}/publish</code></td><td>cookie</td><td>Flip visible</td></tr>
+            <tr><td>POST</td><td><code>/writer/article/{slug}/hide</code></td><td>cookie</td><td>Back to draft</td></tr>
+            <tr><td>DELETE</td><td><code>/writer/article/{slug}</code></td><td>cookie</td><td>HTMX delete with confirm</td></tr>
+          </tbody>
+        </table>
+        <p class="where" style="margin-top:12px;">Unknown paths under <code>/</code> that are not exactly <code>/</code> → 404. No custom 404 page. No <code>/healthz</code>.</p>
+      </section>
+
+      <section id="data">
+        <div class="eyebrow">SQLite WAL · modernc.org/sqlite (pure Go)</div>
+        <h2>Article shape</h2>
+        <div class="grid-2">
+          <div class="panel">
+            <h3 style="margin-top:0;">Table <code>articles_on_the_shelf</code></h3>
+            <pre>article_number              INTEGER PK AUTOINCREMENT
+public_web_address_slug     TEXT UNIQUE NOT NULL
+article_title               TEXT
+article_summary             TEXT
+article_body_markdown       TEXT
+is_visible_to_the_public    INTEGER 0/1
+moment_the_article_was_written   RFC3339Nano
+moment_the_article_last_changed  RFC3339Nano</pre>
+            <p>PRAGMA foreign_keys=ON (unused — no child tables). journal_mode=WAL. No busy_timeout. No migrations folder: schema is <code>CREATE TABLE IF NOT EXISTS</code> in <code>OpenSqliteArticleShelfFile</code>.</p>
+          </div>
+          <div class="panel">
+            <h3 style="margin-top:0;">Markdown (intentional subset)</h3>
+            <p>Implemented in <code>webpage.TurnMarkdownIntoSafeHtml</code>:</p>
+            <ul>
+              <li><code>#</code> <code>##</code> <code>###</code> headings</li>
+              <li><code>- </code> unordered lists</li>
+              <li><code>**bold**</code> and <code>`code`</code></li>
+              <li>Blank lines → paragraphs</li>
+              <li>Raw HTML escaped first, then marks applied</li>
+            </ul>
+            <p>Not implemented: links, images, italics, fenced blocks, blockquotes, numbered lists. That is a product gap, not a bug — unless you want a real blog body.</p>
+          </div>
+        </div>
+        <h3>Auth cookie</h3>
+        <p>
+          Name <code>goholic_writer_session</code>. Value <code>{unix}.{hmac-sha256-hex}</code>.
+          Lifetime 12h (server-side). HttpOnly, SameSite=Lax, Secure if TLS or
+          <code>X-Forwarded-Proto: https</code>. Password bcrypt’d at process start from env.
+          HMAC is <em>not</em> bound to the username. Login cookie has no MaxAge (browser session).
+        </p>
+        <h3>Env (what main actually reads)</h3>
+        <table class="routes">
+          <thead><tr><th>Variable</th><th>Default in main.go</th><th>Used?</th></tr></thead>
+          <tbody>
+            <tr><td><code>GOHOLIC_LISTEN_ADDRESS</code></td><td><code>:8080</code></td><td>yes</td></tr>
+            <tr><td><code>GOHOLIC_DATABASE_FILE_PATH</code></td><td><code>data/goholic.sqlite</code></td><td>yes</td></tr>
+            <tr><td><code>GOHOLIC_WRITER_USERNAME</code></td><td><code>abir</code></td><td>yes</td></tr>
+            <tr><td><code>GOHOLIC_WRITER_PASSWORD</code></td><td><code>change-me-now</code></td><td>yes — insecure default</td></tr>
+            <tr><td><code>GOHOLIC_SESSION_SECRET</code></td><td><code>change-this-secret!</code></td><td>yes — 19 chars, passes ≥16 check</td></tr>
+            <tr><td><code>GOHOLIC_SITE_BASE_URL</code></td><td>in <code>.env.example</code> only</td><td><strong>never read</strong></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="tests">
+        <div class="eyebrow">go test ./… green</div>
+        <h2>What is already proven</h2>
+        <div class="grid-2">
+          <div class="panel">
+            <h3 style="margin-top:0;">Covered</h3>
+            <ul>
+              <li>Drafts stay off the landing page; published titles show</li>
+              <li>Article page renders <code>##</code> to <code>h2</code>; draft slug 404s</li>
+              <li>Login → publish → title appears on <code>/</code> (cookie jar)</li>
+              <li>Librarian hide/publish/search/rewrite/delete</li>
+              <li>Sqlite persist + unique slug</li>
+              <li>Slug cleaner; empty title rejected</li>
+              <li>Markdown escapes <code>&lt;script&gt;</code></li>
+              <li>Passport: good password, tampered cookie, expired cookie</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3 style="margin-top:0;">No tests yet</h3>
+            <ul>
+              <li><code>cmd/goholic-web-server</code> (wiring, env defaults)</li>
+              <li><code>memoryarticleshelf</code> (used by HTTP tests, not unit-tested)</li>
+              <li>CSRF, rate-limit, Secure cookie behind a proxy</li>
+              <li>HTMX delete path, seed stories, search-in-body</li>
+              <li>Insert-error mapping (all sqlite errors become “slug taken”)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="gaps">
+        <div class="eyebrow">Nothing here is deleted work — it is unfinished work</div>
+        <h2>Gap register</h2>
+        <p>Tick items as you close them. State is stored in <code>localStorage</code> on this machine.</p>
+        <input class="search" id="gap-search" type="search" placeholder="Filter gaps (csrf, rss, timeout, sqlite…)">
+        <div class="chips" id="gap-filters"></div>
+        <div id="gap-list"></div>
+        <p id="gap-count" class="where"></p>
+      </section>
+
+      <section id="slices">
+        <div class="eyebrow">Do these in order if the goal is goholic.in + GitHub</div>
+        <h2>Build next</h2>
+
+        <div class="slice">
+          <h4>Slice 1 — Stop shipping with toy secrets</h4>
+          <p>Refuse to boot if password/secret are the compiled defaults. Read <code>GOHOLIC_SITE_BASE_URL</code> or delete it from <code>.env.example</code>. File: <code>cmd/goholic-web-server/main.go</code>.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 2 — A real <code>http.Server</code></h4>
+          <p>Timeouts (ReadHeader, Read, Write, Idle), graceful shutdown on SIGINT, own <code>ServeMux</code> instead of the default. Enables tests that do not share global mux state. File: <code>main.go</code> + small change to <code>BindRoutes…</code> to take a mux.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 3 — Writer desk hardening</h4>
+          <p>CSRF token on POST/DELETE, login constant-time username compare, cookie MaxAge=12h, bind HMAC to username. Files: <code>writerpassport</code>, <code>webpage_server.go</code>, login/dashboard templates.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 4 — Honest sqlite errors + busy_timeout</h4>
+          <p>Inspect <code>sqlite3.ErrConstraintUnique</code> (or string) before returning <code>ErrArticleSlugAlreadyTaken</code>. Set <code>PRAGMA busy_timeout=5000</code>. File: <code>sqlite_article_shelf.go</code>.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 5 — Blog that looks finished</h4>
+          <p>Markdown links + fenced code. RSS at <code>/feed.xml</code>. Open Graph / canonical using the unused base URL. Custom 404. Optional: hide “Writer desk” from the public nav or keep it as a flex. Files: <code>simple_markdown.go</code>, <code>html_layout.go</code>, new feed handler.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 6 — Public repo hygiene</h4>
+          <p>MIT, CI <code>go test ./...</code>, do not commit the 16MB binary or sqlite (gitignore already says so — delete the working copies from the tree before <code>git init</code>). Vendor HTMX or pin + SRI. Empty <code>web/</code> folder: use it for templates or remove it.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 7 — Deploy Path A</h4>
+          <p>Follow <code>docs/CLOUDFLARE_ROADMAP.md</code>: image, volume, tunnel, cache bypass <code>/writer</code>, Access on the desk, nightly sqlite copy. Distroless + <code>VOLUME /app/data</code> needs the volume writable by <code>nonroot</code>.</p>
+        </div>
+        <div class="slice">
+          <h4>Slice 8 — Only if the blog outgrows a file</h4>
+          <p><code>postgresarticleshelf</code> keeping the same interface. Thread <code>context.Context</code> through the shelf first — that is the real architecture follow-up, not a second database for its own sake.</p>
+        </div>
+      </section>
+
+      <section id="edit">
+        <div class="eyebrow">Open the file, change one room</div>
+        <h2>Where to edit</h2>
+        <table class="routes">
+          <thead><tr><th>If you want to…</th><th>Open</th></tr></thead>
+          <tbody>
+            <tr><td>Change what a story is (fields, slug rules)</td><td><code>internal/article/article.go</code></td></tr>
+            <tr><td>Add a cabinet method (tags, FTS)</td><td><code>internal/articleshelf/article_shelf.go</code> then both shelves</td></tr>
+            <tr><td>Change draft/publish/search rules</td><td><code>internal/articlelibrarian/</code></td></tr>
+            <tr><td>Add a route or cookie behavior</td><td><code>internal/webpage/webpage_server.go</code></td></tr>
+            <tr><td>Change look / HTMX / forms</td><td><code>internal/webpage/html_layout.go</code></td></tr>
+            <tr><td>Extend markdown</td><td><code>internal/webpage/simple_markdown.go</code></td></tr>
+            <tr><td>Auth / session</td><td><code>internal/writerpassport/writer_passport.go</code></td></tr>
+            <tr><td>Nameplate (title, city, links)</td><td><code>internal/websiteidentity/website_identity.go</code></td></tr>
+            <tr><td>Seed essays</td><td><code>internal/articlelibrarian/first_stories.go</code></td></tr>
+            <tr><td>Process lifecycle, env, listen</td><td><code>cmd/goholic-web-server/main.go</code></td></tr>
+            <tr><td>Deploy</td><td><code>Dockerfile</code>, <code>docs/CLOUDFLARE_ROADMAP.md</code></td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:16px;">SOLID as this repo actually uses it:</p>
+        <ul>
+          <li><strong>S</strong> — passport does not store stories; identity does not serve HTTP.</li>
+          <li><strong>O</strong> — new cabinet = new package that implements <code>ArticleShelf</code>. Librarian unchanged.</li>
+          <li><strong>L</strong> — HTTP tests already swap sqlite for memory.</li>
+          <li><strong>I</strong> — <code>WallClock</code> is one method.</li>
+          <li><strong>D</strong> — <code>webpage</code> imports librarian, not sqlite. Leak: webpage depends on the <em>concrete</em> <code>*ArticleLibrarian</code>, not an interface — the one DIP gap inside the house.</li>
+        </ul>
+      </section>
+
+      <footer class="site">
+        Generated from the tree at <code>workspace/go/oss/goholic</code>.
+        Run with <code>make run</code>. Tests: <code>make test</code>.
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const rooms = [
+      {
+        id: "cmd",
+        name: "cmd/goholic-web-server",
+        job: "Unlocks the house",
+        body: "Reads five env vars, creates the data directory, opens sqlite, plants seed stories, builds the passport, constructs WebpageServer, binds the default mux, ListenAndServe. No timeouts, no signal handling, no health check.",
+        code: `listenAddress := env("GOHOLIC_LISTEN_ADDRESS", ":8080")
+sqliteFilePath := env("GOHOLIC_DATABASE_FILE_PATH", "data/goholic.sqlite")
+// … OpenSqliteArticleShelfFile
+// … NewArticleLibrarian + PlantFirstStoriesIfTheShelfIsEmpty
+// … NewWriterPassport
+// … NewWebpageServer + BindRoutesToDefaultServeMux
+http.ListenAndServe(listenAddress, nil)`
+      },
+      {
+        id: "webpage",
+        name: "internal/webpage",
+        job: "Front desk",
+        body: "HTTP handlers, html/template constants, HTMX hooks, markdown → HTML. Never imports sqlite. Depends on *ArticleLibrarian (concrete) and *WriterPassport. Templates live in html_layout.go as strings — the empty web/ folder is unused.",
+        code: `WebpageServer
+  websiteIdentity
+  articleLibrarian *ArticleLibrarian
+  writerPassport   *WriterPassport
+  parsedTemplates  *template.Template`
+      },
+      {
+        id: "librarian",
+        name: "internal/articlelibrarian",
+        job: "House rules",
+        body: "Draft, rewrite, publish, hide, delete, list, search. Search is in-process: load all public articles, strings.Contains on title+summary. Seed essays live in first_stories.go (three published posts on empty shelf). Not transactional.",
+        code: `WriteNewDraftArticle
+RewriteExistingArticle
+ShowArticleToThePublic
+HideArticleFromThePublic
+ThrowArticleAway
+FindPublishedArticleForAReader   // hides drafts
+SearchPublishedArticlesForReaders`
+      },
+      {
+        id: "shelf",
+        name: "internal/articleshelf",
+        job: "The promise",
+        body: "Interface only. Two error types: not found, slug taken. FindArticleByArticleNumber is on the interface but no HTTP path uses it.",
+        code: `type ArticleShelf interface {
+  PutArticleOnTheShelf(...)
+  ReplaceArticleOnTheShelf(...)
+  FindArticleByPublicWebAddressSlug(...)
+  FindArticleByArticleNumber(...) // unused above
+  ListArticlesVisibleToThePublic()
+  ListEveryArticleForTheWriter()
+  RemoveArticleByPublicWebAddressSlug(...)
+}`
+      },
+      {
+        id: "sqlite",
+        name: "internal/sqlitearticleshelf",
+        job: "Live cabinet",
+        body: "modernc.org/sqlite, WAL, CREATE TABLE IF NOT EXISTS. Any insert error is rewritten as slug-taken — a real disk error looks like a duplicate slug. CloseTheCabinet is not on the ArticleShelf interface (cmd calls it on the concrete type).",
+        code: `PRAGMA foreign_keys = ON;
+PRAGMA journal_mode = WAL;
+CREATE TABLE IF NOT EXISTS articles_on_the_shelf (...)`
+      },
+      {
+        id: "memory",
+        name: "internal/memoryarticleshelf",
+        job: "Test cabinet",
+        body: "Mutex + map. Bubble-sort newest-first. No unit tests of its own; webpage tests construct it. Fine at blog scale.",
+        code: `sync.Mutex
+map[slug]article.Article
+nextArticleNumber int64`
+      },
+      {
+        id: "article",
+        name: "internal/article",
+        job: "What a story is",
+        body: "Value type. NewDraftArticle validates slug/title/summary/body. CleanPublicWebAddressSlug lowercases and keeps letters/digits/hyphens. ShownToThePublic / HiddenFromThePublic / WithUpdatedWriting return copies. Slug cannot change after create (rewrite reuses existing slug).",
+        code: `type Article struct {
+  ArticleNumber int64
+  PublicWebAddressSlug string
+  ArticleTitle, ArticleSummary, ArticleBodyMarkdown string
+  IsVisibleToThePublic bool
+  MomentTheArticleWasWritten, MomentTheArticleLastChanged time.Time
+}`
+      },
+      {
+        id: "passport",
+        name: "internal/writerpassport",
+        job: "Door key",
+        body: "bcrypt at construction, HMAC-SHA256 session of unix seconds. 12h window, reject future timestamps >1m. Username compared with != (timing leak, tiny). Cookie value is not bound to the user id.",
+        code: `token = unix + "." + hmacSHA256(secret, unix)
+cookie = goholic_writer_session`
+      },
+      {
+        id: "clock",
+        name: "internal/wallclock",
+        job: "What time is it?",
+        body: "Interface with RealWallClock and FrozenWallClock. Tests freeze time so cookies and dates do not flake.",
+        code: `type WallClock interface {
+  WhatTimeIsItRightNow() time.Time
+}`
+      },
+      {
+        id: "identity",
+        name: "internal/websiteidentity",
+        job: "Nameplate",
+        body: "Hard-coded Abir / goholic.in / Kolkata / social links. Every page header and footer reads this struct. Change copy here, not in templates.",
+        code: `NewGoholicWebsiteIdentity()`
+      }
+    ];
+
+    const flows = {
+      read: {
+        label: "Read a story",
+        steps: [
+          { t: "GET /article/from-kolkata-with-go", d: "ServeMux prefix /article/ → ShowOnePublishedArticlePage." },
+          { t: "Librarian.FindPublishedArticleForAReader", d: "Shelf lookup by slug. If IsVisibleToThePublic is false, return ErrArticleWasNotFound (HTTP 404). Drafts do not leak." },
+          { t: "TurnMarkdownIntoSafeHtml", d: "Escape, then headings/lists/bold/code. Result stuffed into template.HTML." },
+          { t: "article template", d: "Shared chrome + hero + .article-body. No author byline beyond the site footer." }
+        ]
+      },
+      search: {
+        label: "HTMX search",
+        steps: [
+          { t: "GET /?q=solid  (hx-get)", d: "Landing form hx-target=#article-card-list hx-select=#article-card-list hx-push-url=true." },
+          { t: "SearchPublishedArticlesForReaders", d: "List all public rows, lowercase Contains on title+summary. Body is not searched. Empty q returns everything." },
+          { t: "Full landing HTML, fragment swapped", d: "Server still renders the whole page; HTMX keeps the list node. Cache rules on / must treat ?q= carefully (roadmap already warns)." }
+        ]
+      },
+      login: {
+        label: "Writer login",
+        steps: [
+          { t: "POST /writer/login", d: "Parse form writer_username / writer_password." },
+          { t: "TryToOpenTheWriterDoor", d: "Username equality, then bcrypt.CompareHashAndPassword. Fail → 401 + flash on login template." },
+          { t: "SetCookie", d: "HttpOnly, SameSite=Lax, Secure if TLS or X-Forwarded-Proto=https. No MaxAge. Redirect 303 to /writer/dashboard." }
+        ]
+      },
+      publish: {
+        label: "Publish from the desk",
+        steps: [
+          { t: "Cookie check", d: "theWriterIsSignedIn reads goholic_writer_session and HMAC+expiry. Else 303 to login." },
+          { t: "hx-post /writer/article/{slug}/publish", d: "HandleWriterArticleAction splits path; ShowArticleToThePublic sets flag and timestamp via clock." },
+          { t: "ReplaceArticleOnTheShelf", d: "UPDATE by slug. 0 rows → not found." },
+          { t: "Redirect dashboard?flash=Saved.", d: "hx-target=body so the whole desk redraws. No CSRF token on this POST." }
+        ]
+      }
+    };
+
+    const gaps = [
+      { id: "secrets", pri: "ship", title: "Insecure compiled defaults", where: "cmd/goholic-web-server/main.go",
+        why: "If env is unset, password is change-me-now and the HMAC secret is a public string. Anyone who clones and runs has a known desk key." },
+      { id: "server", pri: "ship", title: "ListenAndServe with no timeouts or shutdown", where: "main.go",
+        why: "Default server is vulnerable to slowloris; SIGINT drops in-flight writes. Use http.Server + context cancel." },
+      { id: "mux", pri: "arch", title: "DefaultServeMux is global", where: "webpage_server.go BindRoutesToDefaultServeMux",
+        why: "Tests and the process share one mux. Pass an http.ServeMux in." },
+      { id: "csrf", pri: "ship", title: "No CSRF on writer POST/DELETE", where: "html_layout.go + webpage_server.go",
+        why: "A logged-in browser visiting a foreign page can publish/hide/delete. Add a token in cookie or session." },
+      { id: "hmac-user", pri: "ship", title: "Session HMAC is only a timestamp", where: "writer_passport.go",
+        why: "Token is unix.hmac. Not bound to username; cannot revoke one writer without rotating the secret. Fine for a single user, weak as a pattern." },
+      { id: "cookie-maxage", pri: "ship", title: "Login cookie has no MaxAge", where: "webpage_server.go SetCookie",
+        why: "Browser treats it as a session cookie while the server allows 12h. Set MaxAge/Expires to match." },
+      { id: "user-timing", pri: "ship", title: "Username compared with !=", where: "TryToOpenTheWriterDoor",
+        why: "Tiny timing leak. Use hmac.Equal on hashed/padded usernames, or always run bcrypt." },
+      { id: "sqlite-err", pri: "ship", title: "Every insert error becomes slug-taken", where: "sqlite_article_shelf.go PutArticleOnTheShelf",
+        why: "Disk full, locked DB, and unique-violation look the same to the writer." },
+      { id: "busy", pri: "ship", title: "No SQLite busy_timeout", where: "OpenSqliteArticleShelfFile",
+        why: "WAL helps; a second process (backup, stray binary) still gets immediate lock errors." },
+      { id: "htmx-cdn", pri: "ship", title: "HTMX loaded from unpkg, no SRI", where: "html_layout.go htmlPageStart",
+        why: "Writer desk JS is a third-party origin. Vendor the file or add integrity+crossorigin." },
+      { id: "logs", pri: "ship", title: "No request logs, no slog", where: "main.go / webpage",
+        why: "Production incidents will be silent besides fatal startup logs." },
+      { id: "health", pri: "ship", title: "No /healthz", where: "webpage routes",
+        why: "Docker/K8s/Cloudflare health checks have nothing cheap to hit. Ping sqlite there." },
+      { id: "baseurl", pri: "product", title: "GOHOLIC_SITE_BASE_URL is unused", where: ".env.example vs main.go",
+        why: "Needed for canonical URLs, RSS, Open Graph, sitemap. Either wire it or drop it." },
+      { id: "rss", pri: "product", title: "No RSS/Atom, sitemap, or Open Graph", where: "webpage + identity",
+        why: "A blog without a feed is a brochure. Small win for readers and for LinkedIn unfurls." },
+      { id: "md", pri: "product", title: "Markdown has no links or fenced code", where: "simple_markdown.go",
+        why: "Seed posts barely need it; real essays will. Links + ``` are the next 40 lines." },
+      { id: "search", pri: "product", title: "Search ignores body and is O(n)", where: "article_librarian.go Search…",
+        why: "Fine for 20 posts. FTS5 on sqlite is the grown-up version when you care." },
+      { id: "slug", pri: "product", title: "Slug is immutable; no redirects", where: "RewriteExistingArticle",
+        why: "Fixing a typo in a live URL means a new article. Optional: allow slug change + 301 table." },
+      { id: "nav", pri: "product", title: "Writer desk is in the public nav", where: "htmlPageStart",
+        why: "Not a security hole (auth still required) but it advertises the admin URL. Product choice." },
+      { id: "404", pri: "product", title: "Plain http.NotFound page", where: "ShowLandingPageOrNotFound",
+        why: "Looks unfinished next to the designed landing page." },
+      { id: "seed-tx", pri: "arch", title: "Seed stories are not one transaction", where: "first_stories.go",
+        why: "Crash mid-loop leaves 1–2 of 3 essays. Wrap in a sqlite transaction or make seed idempotent per slug." },
+      { id: "dip", pri: "arch", title: "Webpage depends on concrete *ArticleLibrarian", where: "webpage_server.go",
+        why: "The one DIP miss. Extract an interface if you want to fake the librarian without a shelf." },
+      { id: "ctx", pri: "arch", title: "No context.Context on shelf methods", where: "articleshelf.ArticleShelf",
+        why: "Timeouts and request cancel cannot propagate to sqlite. Add ctx before postgres." },
+      { id: "unused-id", pri: "arch", title: "FindArticleByArticleNumber unused", where: "ArticleShelf",
+        why: "Dead interface surface. Use it for /e/{id} or drop it until needed." },
+      { id: "templates", pri: "arch", title: "Templates are giant string constants; web/ is empty", where: "html_layout.go, web/",
+        why: "Editing HTML inside Go is painful. Move to embed.FS from web/ or keep strings and delete web/." },
+      { id: "binary", pri: "oss", title: "16MB binary and sqlite sit in the tree", where: "goholic-web-server, data/",
+        why: ".gitignore already excludes them. Remove from disk before git init so they never get added with -f." },
+      { id: "license-ci", pri: "oss", title: "No LICENSE, no git, no CI", where: "repo root",
+        why: "Cannot go install or show GitHub. MIT + test.yml is the public-repo slice." },
+      { id: "docker-vol", pri: "oss", title: "Distroless nonroot + VOLUME /app/data", where: "Dockerfile",
+        why: "Host bind-mounts owned by root will 500 on first write. Document chown or an entrypoint." },
+      { id: "go-version", pri: "oss", title: "go 1.22 while the rest of workspace is 1.26", where: "go.mod, Dockerfile",
+        why: "Not broken. Pick one version so CI and the image match your machine." }
+    ];
+
+    const roomBox = document.getElementById("room-buttons");
+    const roomDetail = document.getElementById("room-detail");
+    function showRoom(id) {
+      const r = rooms.find(x => x.id === id);
+      document.querySelectorAll(".room").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === id ? "true" : "false"));
+      roomDetail.innerHTML = `<h3>${r.name}</h3><p>${r.body}</p><pre>${r.code}</pre>`;
+    }
+    rooms.forEach(r => {
+      const b = document.createElement("button");
+      b.className = "room";
+      b.dataset.id = r.id;
+      b.setAttribute("aria-pressed", "false");
+      b.innerHTML = `<strong>${r.name}</strong><small>${r.job}</small>`;
+      b.addEventListener("click", () => showRoom(r.id));
+      roomBox.appendChild(b);
+    });
+    showRoom("webpage");
+
+    let flowId = "read";
+    let flowStep = 0;
+    const tabBox = document.getElementById("flow-tabs");
+    const stepBox = document.getElementById("flow-steps");
+    function renderFlow() {
+      const f = flows[flowId];
+      tabBox.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === flowId ? "true" : "false"));
+      stepBox.innerHTML = f.steps.map((s, i) => `
+        <div class="step ${i === flowStep ? "" : "dim"}">
+          <div class="n">${i + 1}</div>
+          <div><strong>${s.t}</strong><div class="meta" style="color:var(--mute)">${s.d}</div></div>
+        </div>`).join("");
+    }
+    Object.entries(flows).forEach(([id, f]) => {
+      const b = document.createElement("button");
+      b.dataset.id = id;
+      b.textContent = f.label;
+      b.addEventListener("click", () => { flowId = id; flowStep = 0; renderFlow(); });
+      tabBox.appendChild(b);
+    });
+    document.getElementById("flow-next").addEventListener("click", () => {
+      flowStep = Math.min(flowStep + 1, flows[flowId].steps.length - 1);
+      renderFlow();
+    });
+    document.getElementById("flow-prev").addEventListener("click", () => {
+      flowStep = Math.max(flowStep - 1, 0);
+      renderFlow();
+    });
+    renderFlow();
+
+    const FILTERS = [
+      { id: "all", label: "All" },
+      { id: "ship", label: "Ship / safety" },
+      { id: "product", label: "Product" },
+      { id: "arch", label: "Architecture" },
+      { id: "oss", label: "OSS / deploy" },
+      { id: "open", label: "Still open" },
+      { id: "done", label: "Ticked" }
+    ];
+    let filter = "all";
+    const filterBox = document.getElementById("gap-filters");
+    FILTERS.forEach(f => {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.dataset.id = f.id;
+      b.textContent = f.label;
+      b.addEventListener("click", () => { filter = f.id; renderGaps(); });
+      filterBox.appendChild(b);
+    });
+
+    const storeKey = "goholic-gaps-v1";
+    function loadDone() {
+      try { return JSON.parse(localStorage.getItem(storeKey) || "{}"); }
+      catch { return {}; }
+    }
+    function saveDone(map) { localStorage.setItem(storeKey, JSON.stringify(map)); }
+
+    function renderGaps() {
+      const q = (document.getElementById("gap-search").value || "").toLowerCase();
+      const done = loadDone();
+      filterBox.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.id === filter ? "true" : "false"));
+      const priClass = { ship: "p-ship", product: "p-product", arch: "p-arch", oss: "p-oss" };
+      const priLabel = { ship: "ship", product: "product", arch: "architecture", oss: "oss" };
+      let shown = 0, open = 0;
+      const html = gaps.map(g => {
+        const isDone = !!done[g.id];
+        if (!isDone) open++;
+        const blob = (g.title + " " + g.why + " " + g.where).toLowerCase();
+        if (q && !blob.includes(q)) return "";
+        if (filter === "ship" || filter === "product" || filter === "arch" || filter === "oss") {
+          if (g.pri !== filter) return "";
+        }
+        if (filter === "open" && isDone) return "";
+        if (filter === "done" && !isDone) return "";
+        shown++;
+        return `<label class="gap ${isDone ? "done" : ""}">
+          <input type="checkbox" data-gap="${g.id}" ${isDone ? "checked" : ""}>
+          <h4><span class="pill ${priClass[g.pri]}">${priLabel[g.pri]}</span> ${g.title}</h4>
+          <p>${g.why}</p>
+          <div class="where">${g.where}</div>
+        </label>`;
+      }).join("");
+      document.getElementById("gap-list").innerHTML = html || "<p>No gaps match.</p>";
+      document.getElementById("gap-count").textContent =
+        shown + " shown · " + open + " still open of " + gaps.length;
+      document.querySelectorAll("input[data-gap]").forEach(inp => {
+        inp.addEventListener("change", () => {
+          const map = loadDone();
+          if (inp.checked) map[inp.dataset.gap] = true;
+          else delete map[inp.dataset.gap];
+          saveDone(map);
+          renderGaps();
+        });
+      });
+    }
+    document.getElementById("gap-search").addEventListener("input", renderGaps);
+    renderGaps();
+
+    const links = document.querySelectorAll("nav.side a");
+    const sections = [...links].map(a => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        links.forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + en.target.id));
+      });
+    }, { rootMargin: "-40% 0px -50% 0px" });
+    sections.forEach(s => io.observe(s));
+  </script>
+</body>
+</html>
