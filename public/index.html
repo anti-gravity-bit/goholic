@@ -128,18 +128,19 @@ h1, h2, h3 { font-family: var(--display); font-weight: 560; letter-spacing: -0.0
 .subtitle { font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; }
 .lede { font-size: 1.25rem; color: var(--mute); max-width: 40rem; }
 .cover-card {
-  background: var(--moss-deep); color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
+  background: #122e24; color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
   min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
   box-shadow: var(--shadow);
 }
-.cover-card p { margin: 0.3rem 0; }
+.cover-card p, .cover-card .kicker { color: #f6f1e7; }
+.cover-card .kicker { color: #e7c2b4; }
 .cover-card a { color: #f0c7b8; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0 0.4rem; }
 .actions a {
   text-decoration: none; border-radius: 999px; padding: 0.7rem 1rem;
   border: 1px solid var(--moss-deep);
 }
-.actions a.primary { background: var(--moss-deep); color: #f6f1e7; }
+.actions a.primary, .actions a.primary:hover { background: #122e24; color: #f6f1e7; }
 .actions a.secondary { background: transparent; color: var(--ink); }
 .grid-2 { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; }
 .panel, .chapter-card, .author-card, .faq details {
@@ -221,7 +222,7 @@ p code, li code, td code { background: var(--paper-2); padding: 0.05em 0.35em; b
       <p class="meta">By <a href="/author/">Abir Sarkar</a>, Senior Backend System Engineer, Kolkata. Free to read on any device.</p>
     </div>
     <aside class="cover-card">
-      <p class="kicker" style="color:#e0a48f">The running project</p>
+      <p class="kicker" style="color:#e7c2b4">The running project</p>
       <p>Forge, a task API, begins with three endpoints and grows only when the system needs the next idea.</p>
       <p>Part I is the thinking: what a backend is, how a request moves, what to decide before code, and the first service that makes those decisions visible.</p>
       <p><a href="https://www.linkedin.com/in/abir-sarkar-dev/">Abir Sarkar on LinkedIn</a></p>
