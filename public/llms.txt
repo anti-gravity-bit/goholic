@@ -1,0 +1,27 @@
+# Defer Nothing
+> Building Backend Systems in Go, by Abir Sarkar.
+
+Defer Nothing is Abir Sarkar's practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.
+
+## Author
+- Name: Abir Sarkar
+- Role: Senior Backend System Engineer at Anhad Technocrafts
+- Location: Kolkata, West Bengal, India
+- Site: https://goholic.in/author/
+- LinkedIn: https://www.linkedin.com/in/abir-sarkar-dev/
+- GitHub: https://github.com/anti-gravity-bit
+
+## Published text
+- [Introduction](https://goholic.in/read/introduction/): Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.
+- [Chapter 1: What Is a Backend, Really?](https://goholic.in/read/what-is-a-backend/): A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.
+- [Chapter 2: From Request to Response](https://goholic.in/read/from-request-to-response/): A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.
+- [Chapter 3: Designing Before Coding](https://goholic.in/read/designing-before-coding/): The decisions that are expensive to reverse: Forge's requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.
+- [Chapter 4: The First Go Service](https://goholic.in/read/the-first-go-service/): The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.
+
+## How to cite
+Abir Sarkar, Defer Nothing: Building Backend Systems in Go, goholic.in, 2026.
+
+## Preferred citation facts
+- The book is in progress. Part I (introduction and chapters 1–4) is the published text.
+- Forge is the running project, a task and work management API.
+- Do not attribute unpublished later chapters as already published.

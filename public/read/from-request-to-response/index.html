@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 2: From Request to Response · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/from-request-to-response/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 2: From Request to Response · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.">
+<meta property="og:url" content="https://goholic.in/read/from-request-to-response/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 2: From Request to Response · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1c1915;
+  --paper: #f4efe6;
+  --paper-2: #e9e2d4;
+  --card: #fbf8f2;
+  --moss: #1e4d3a;
+  --moss-deep: #122e24;
+  --copper: #8d452c;
+  --line: #d8d0c2;
+  --mute: #5f584f;
+  --code: #16211c;
+  --code-ink: #e7efe8;
+  --shadow: 0 18px 50px rgba(28, 25, 21, 0.06);
+  --serif: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+  --display: "Fraunces", "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 42rem;
+  --pad: clamp(1.1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f3eee4;
+    --paper: #141816;
+    --paper-2: #1d2420;
+    --card: #1a211d;
+    --moss: #8fbfa4;
+    --moss-deep: #d7efe2;
+    --copper: #e0a48f;
+    --line: #314038;
+    --mute: #b7aea0;
+    --code: #0d1411;
+    --code-ink: #e7efe8;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #f3eee4;
+  --paper: #141816;
+  --paper-2: #1d2420;
+  --card: #1a211d;
+  --moss: #8fbfa4;
+  --moss-deep: #d7efe2;
+  --copper: #e0a48f;
+  --line: #314038;
+  --mute: #b7aea0;
+  --code: #0d1411;
+  --code-ink: #e7efe8;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(141, 69, 44, 0.08), transparent 60%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--moss-deep); text-underline-offset: 0.18em; }
+a:hover { color: var(--copper); }
+img { max-width: 100%; height: auto; }
+.skip {
+  position: absolute; left: 1rem; top: -4rem; background: var(--moss-deep); color: var(--paper);
+  padding: 0.6rem 0.9rem; z-index: 5;
+}
+.skip:focus { top: 0.6rem; }
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--copper); z-index: 6;
+}
+.site-header {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.85rem var(--pad);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.wordmark {
+  font-family: var(--display); font-weight: 560; letter-spacing: -0.03em;
+  text-decoration: none; color: var(--ink); font-size: 1.2rem;
+}
+.wordmark span { color: var(--copper); }
+.nav { display: flex; gap: 0.9rem; align-items: center; font-size: 0.95rem; }
+.nav a { text-decoration: none; }
+.theme-btn, .nav a.button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 0.35rem 0.75rem; font: inherit; cursor: pointer;
+}
+.shell { width: min(1120px, calc(100% - 2 * var(--pad))); margin: 0 auto; }
+.hero { padding: 3.2rem 0 1.5rem; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 2.5rem; align-items: end; }
+.kicker { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper); }
+h1, h2, h3 { font-family: var(--display); font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; }
+.hero h1 { font-size: clamp(3.1rem, 8vw, 6.4rem); margin: 0.2rem 0 0.4rem; }
+.subtitle { font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; }
+.lede { font-size: 1.25rem; color: var(--mute); max-width: 40rem; }
+.cover-card {
+  background: var(--moss-deep); color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
+  min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+.cover-card p { margin: 0.3rem 0; }
+.cover-card a { color: #f0c7b8; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0 0.4rem; }
+.actions a {
+  text-decoration: none; border-radius: 999px; padding: 0.7rem 1rem;
+  border: 1px solid var(--moss-deep);
+}
+.actions a.primary { background: var(--moss-deep); color: #f6f1e7; }
+.actions a.secondary { background: transparent; color: var(--ink); }
+.grid-2 { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; }
+.panel, .chapter-card, .author-card, .faq details {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.15rem;
+}
+.chapter-list { display: grid; gap: 0.8rem; }
+.chapter-card { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.8rem; text-decoration: none; color: inherit; }
+.chapter-card:hover { border-color: var(--copper); }
+.chapter-card strong { display: block; font-family: var(--display); font-size: 1.25rem; font-weight: 560; }
+.meta { color: var(--mute); font-size: 0.92rem; }
+.principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.7rem; margin: 1rem 0 2rem; }
+.principles div { border-top: 2px solid var(--copper); padding-top: 0.6rem; }
+.principles strong { display: block; font-family: var(--display); }
+.read-layout { display: grid; grid-template-columns: minmax(0, var(--measure)) 16rem; gap: 2.2rem; padding: 1.6rem 0 4rem; }
+article h2 { font-size: 1.7rem; margin-top: 2.1rem; }
+article h3 { font-size: 1.3rem; margin-top: 1.6rem; }
+article p, article li { max-width: var(--measure); }
+article table { width: 100%; border-collapse: collapse; font-size: 0.98rem; margin: 1rem 0 1.4rem; display: block; overflow-x: auto; }
+article th, article td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.55rem 0.7rem; vertical-align: top; }
+article th { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+blockquote {
+  margin: 1.4rem 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 3px solid var(--copper); color: var(--ink);
+}
+pre {
+  background: var(--code); color: var(--code-ink); padding: 1rem 1.05rem; border-radius: 12px;
+  overflow-x: auto; font-family: var(--mono); font-size: 0.86rem; line-height: 1.55;
+}
+code { font-family: var(--mono); font-size: 0.88em; }
+p code, li code, td code { background: var(--paper-2); padding: 0.05em 0.35em; border-radius: 5px; }
+.toc { position: sticky; top: 4.5rem; font-size: 0.92rem; }
+.toc ol { padding-left: 1.1rem; margin: 0.4rem 0 0; }
+.toc a { text-decoration: none; }
+.pager {
+  display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.4rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.pager a { text-decoration: none; max-width: 46%; }
+.cite, .author-strip { color: var(--mute); font-size: 0.95rem; }
+.site-footer { border-top: 1px solid var(--line); padding: 1.4rem var(--pad) 2.4rem; color: var(--mute); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.faq details { margin-bottom: 0.6rem; }
+.faq summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; }
+@media (max-width: 860px) {
+  .hero, .grid-2, .read-layout, .principles { grid-template-columns: 1fr; }
+  .chapter-card { grid-template-columns: 1fr; }
+  .toc { position: static; }
+  .nav span.hide-sm { display: none; }
+}
+@media print {
+  .site-header, .progress, .toc, .theme-btn, .pager, .site-footer { display: none; }
+  body { background: white; color: black; }
+  pre { white-space: pre-wrap; }
+}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 2: From Request to Response", "headline": "Chapter 2: From Request to Response", "url": "https://goholic.in/read/from-request-to-response/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-03", "inLanguage": "en", "description": "A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.", "position": 3, "wordCount": 1896, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 2: From Request to Response", "item": "https://goholic.in/read/from-request-to-response/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part I · Thinking in Backends · Chapter 2</p>
+    <h1>Chapter 2: From Request to Response</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 8 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Ask an experienced backend engineer why a request is slow, and they rarely start by looking at code. They start by running the request in their head: it arrives here, passes through this, waits on that, comes back this way. Within a minute they have three suspects instead of three thousand lines.</p>
+<p>That skill is learnable, and it is the foundation for almost everything later in the book: debugging, performance work, observability, and incident response. This chapter teaches it by following a single request, slowly, from the moment a client sends it to the moment the client receives an answer.</p>
+<h2 id="two-maps-of-the-same-request">Two Maps of the Same Request</h2>
+<p>Chapter 1 gave you a conceptual map: input, interpretation, validation, business decision, state transition, side effects, response. It describes what the system decides.</p>
+<p>This chapter gives you the physical map: which components the request actually touches, in what order, and what each one is waiting for. The conceptual map tells you what must happen. The physical map tells you where it can go wrong.</p>
+<pre><code>Client
+  ↓
+TCP (and TLS)
+  ↓
+HTTP
+  ↓
+Router
+  ↓
+Middleware
+  ↓
+Handler
+  ↓
+Service
+  ↓
+Repository
+  ↓
+Database
+  ↓
+Repository
+  ↓
+Service
+  ↓
+Handler
+  ↓
+HTTP Response
+</code></pre>
+<p>One caution before we walk it. The layers named Handler, Service, and Repository are roles, and the book will justify them properly in Chapter 17. When we write the first Forge service in Chapter 4, it will deliberately have less structure than this diagram shows. The diagram is the destination, and we want a name for each stop before we decide how many stops the system needs.</p>
+<h2 id="walking-the-path">Walking the Path</h2>
+<p>We will follow the same request as before:</p>
+<pre><code>POST /tasks
+{ &quot;title&quot;: &quot;Write chapter one&quot; }
+</code></pre>
+<p><strong>The connection.</strong> Before any HTTP exists, the client must find the server (DNS), open a TCP connection (a handshake), and usually negotiate encryption (TLS). This happens before your code sees a single byte, and it can fail in ways your code will never log: the name does not resolve, the connection is refused, the handshake times out. From the client&rsquo;s side, these look like &ldquo;the service is down.&rdquo; From your side, nothing happened. Remember this. Some failures are invisible to the server, which is why clients need their own timeouts and why monitoring must include a view from outside.</p>
+<p><strong>Bytes become HTTP.</strong> The server reads a stream of bytes and parses it into a method, a path, headers, and a body. This is where a server defends itself. How large may a header be? How large may the body be? How long will we wait for a slow client to finish sending? A server with no answers to these questions can be held hostage by a client that sends one byte per second. Chapter 5 covers the limits to configure.</p>
+<p><strong>The router.</strong> The router matches the method and path to the code that should handle them. No match produces a 404. A matching path with the wrong method produces a 405. This step is cheap, and its failures are the easiest to diagnose, which makes it a good first suspect when a new endpoint &ldquo;doesn&rsquo;t work.&rdquo;</p>
+<p><strong>Middleware.</strong> Before the handler runs, the request passes through a chain of wrappers that deal with concerns shared by every endpoint: recovering from panics, assigning a request ID, logging, authenticating. Middleware sees every request, so a mistake here affects all of them. It is also order-sensitive. Logging before authentication records requests that were rejected, and logging after does not. Chapter 7 treats this carefully.</p>
+<p><strong>The handler.</strong> The handler is the translator between HTTP and the application. It decodes the JSON body, calls the application logic with plain values, and turns the result back into a status code and a body. Its defining property is what it <em>knows</em>: it understands HTTP, and it should not understand SQL.</p>
+<p><strong>The service.</strong> The service is where decisions live: is this allowed, is this valid given the current state, what should change? It understands the business rules and knows nothing about HTTP or SQL. That ignorance is deliberate, and it is what lets the same rules serve an HTTP endpoint, a background worker, and a test.</p>
+<p><strong>The repository.</strong> The repository translates between the application&rsquo;s objects and the storage format. It is the only place that knows what the tables look like.</p>
+<p><strong>The database.</strong> Here the request finally changes the world. The database is usually the slowest hop and always the most stateful one: it has locks, connection limits, and its own failure modes.</p>
+<p><strong>The return path.</strong> The result travels back through the same layers, and at each boundary it is translated. A database row becomes a domain object, which becomes a response structure, which becomes JSON bytes, which become an HTTP response.</p>
+<p>The same table summarizes who owns what.</p>
+<table>
+<thead>
+<tr>
+<th>Hop</th>
+<th>Owns</th>
+<th>Must not know</th>
+<th>Typical failure</th>
+<th>What the client experiences</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connection</td>
+<td>Reaching the server</td>
+<td>Anything about the request</td>
+<td>DNS failure, refused connection, TLS error</td>
+<td>Network error, no HTTP response</td>
+</tr>
+<tr>
+<td>HTTP parsing</td>
+<td>Reading the request safely</td>
+<td>Business meaning</td>
+<td>Oversized body, malformed request, slow client</td>
+<td>400, 413, 408, or a dropped connection</td>
+</tr>
+<tr>
+<td>Router</td>
+<td>Choosing the handler</td>
+<td>Request contents</td>
+<td>No matching route</td>
+<td>404 or 405</td>
+</tr>
+<tr>
+<td>Middleware</td>
+<td>Cross-cutting concerns</td>
+<td>Specific endpoint logic</td>
+<td>Panic, rejected credentials</td>
+<td>500 or 401</td>
+</tr>
+<tr>
+<td>Handler</td>
+<td>HTTP in, HTTP out</td>
+<td>SQL, storage layout</td>
+<td>Undecodable body</td>
+<td>400</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>Decisions and rules</td>
+<td>HTTP, SQL</td>
+<td>Rule violation</td>
+<td>409, 403, or 422</td>
+</tr>
+<tr>
+<td>Repository</td>
+<td>Storage translation</td>
+<td>HTTP, business policy</td>
+<td>Query error, constraint violation</td>
+<td>Usually 500, sometimes 409</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>Durable state</td>
+<td>Everything above it</td>
+<td>Timeout, lock wait, connection exhaustion</td>
+<td>Slow response, then 500 or 503</td>
+</tr>
+</tbody>
+</table>
+<h2 id="errors-are-translated-at-every-boundary">Errors Are Translated at Every Boundary</h2>
+<p>On the return path, the most important thing that happens is translation of errors, and it is where many backends leak or lose information.</p>
+<p>Suppose two clients create a record that must be unique, and the second one collides. The database reports a unique-constraint violation, in the database&rsquo;s vocabulary. If that message travels unchanged to the client, the client learns the name of an internal index, and the error means nothing to anyone who is not reading your schema.</p>
+<p>The right shape is a chain of translations. The repository recognizes the constraint violation and reports it as &ldquo;this already exists,&rdquo; a concept the application understands. The service decides what that means for the business. The handler maps it to a response the client can act on: a 409 status with a clear error code.</p>
+<pre><code>Postgres: unique violation on idx_tasks_...
+        ↓  (repository translates)
+Application: already exists
+        ↓  (service decides)
+Application: conflict
+        ↓  (handler maps)
+HTTP: 409 with { &quot;error&quot;: { &quot;code&quot;: &quot;ALREADY_EXISTS&quot;, ... } }
+</code></pre>
+<p>Each layer speaks its own language and translates at the boundary. Chapter 8 builds the full error model. What matters now is the principle: <strong>an error should be described in the vocabulary of the layer that receives it, while the original cause is preserved for the logs.</strong></p>
+<h2 id="where-the-time-goes">Where the Time Goes</h2>
+<p>Here is a rough picture of where a typical request spends its time. The figures are illustrative, not measurements, but the shape is realistic.</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Illustrative time</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connection and TLS (new connection)</td>
+<td>10 to 30 ms</td>
+<td>Near zero when a connection is reused</td>
+</tr>
+<tr>
+<td>Parsing, routing, middleware</td>
+<td>Under 1 ms</td>
+<td>Cheap and rarely the problem</td>
+</tr>
+<tr>
+<td>Handler and service logic</td>
+<td>Under 1 ms</td>
+<td>Pure computation is fast</td>
+</tr>
+<tr>
+<td>Database round trip</td>
+<td>2 to 20 ms</td>
+<td>Depends on the query, locks, and load</td>
+</tr>
+<tr>
+<td>Response writing</td>
+<td>Under 1 ms</td>
+<td>Unless the body is very large</td>
+</tr>
+</tbody>
+</table>
+<p>The pattern is consistent: the code you write is rarely the slow part. Time is spent <em>waiting</em>, on networks and on databases. This observation shapes the second half of the book. If most of a request&rsquo;s life is waiting, then the important engineering questions are how long we are willing to wait, what we do when the wait gets too long, and how many requests we can have waiting at once. Those questions lead directly to timeouts, cancellation, and concurrency.</p>
+<h2 id="the-four-question-trace">The Four-Question Trace</h2>
+<p>To trace a request, ask four questions at each hop.</p>
+<ol>
+<li><strong>What arrives here?</strong> The exact input, including its format and its assumptions.</li>
+<li><strong>What leaves here?</strong> The output, and who consumes it next.</li>
+<li><strong>What can go wrong here?</strong> The failure modes specific to this hop.</li>
+<li><strong>What is this hop waiting on?</strong> The dependency or resource it blocks on, and for how long.</li>
+</ol>
+<p>The fourth question is the one beginners skip, and it explains more production behavior than the other three combined.</p>
+<h2 id="a-worked-trace">A Worked Trace</h2>
+<p>A teammate reports: &ldquo;<code>POST /tasks</code> returns a 500 about one time in fifty.&rdquo; Rather than reading code, trace.</p>
+<p>The connection is unlikely to be the cause, because the client received a 500, which means an HTTP response was produced. The router matched, because a handler ran or a middleware recovered a panic. So the failure is in middleware, handler, service, repository, or database.</p>
+<p>Failing only occasionally narrows it further. A bug in decoding or validation would usually depend on the input, so ask whether the failing requests share something. A failure that depends on load or timing points to the database or to concurrency: connection pool exhaustion, a lock wait that times out, or a collision on a unique value.</p>
+<p>Now you know what to look for: do the failing requests share an input pattern, and did the database report a timeout or a constraint error at those moments? You have turned an open-ended hunt into two specific checks, and you did it without opening an editor. This is the skill. It works because the physical map gave you a list of places where intermittent failures actually live.</p>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We gave ourselves a physical map of a request and a method for reasoning about it, so that debugging and design start from structure instead of guesswork.</p>
+<p><strong>What complexity did we introduce?</strong> A set of named layers, which may be more structure than a small service needs. We accept this now because naming the layers makes their trade-offs discussable later.</p>
+<p><strong>What failure modes appeared?</strong> Failures invisible to the server, such as DNS and connection problems. Failures hidden by badly translated errors. Slow requests dominated by waiting rather than computation.</p>
+<p><strong>What would break at 10× scale?</strong> The waiting. Connection pools, database capacity, and slow dependencies become the limiting factors long before CPU does.</p>
+<p><strong>When should we not use this model?</strong> For a tiny internal tool with one endpoint and one user, a full layered view is overkill. The tracing habit still applies even when the layers are collapsed into one function.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Choose one endpoint from any API you have used. Draw its path through the hops above. Which hop is most likely to be slow? Which is most likely to fail in a way the server never logs?</li>
+<li>Take the error chain for a unique-constraint violation and write the equivalent chain for &ldquo;the database is unreachable.&rdquo; What should the client see, and what should the logs record?</li>
+<li>A request logs &ldquo;completed in 45 ms&rdquo; on the server, but the client measured 400 ms. List three places the missing time could have gone.</li>
+<li>For each hop, write one sentence describing what it is waiting on. Which of those waits have no timeout today?</li>
+</ol>
+<p>Chapter 3 moves from understanding a request to designing a system for it. Before any Go is written, we decide what Forge must do, what it must never do, and what happens when it fails.</p>
+<hr>
+    <nav class="pager" aria-label="Chapter"><a href="/read/what-is-a-backend/">← Chapter 1</a><a href="/read/designing-before-coding/">Chapter 3 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 2: From Request to Response,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/from-request-to-response/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#two-maps-of-the-same-request">Two Maps of the Same Request</a></li><li><a href="#walking-the-path">Walking the Path</a></li><li><a href="#errors-are-translated-at-every-boundary">Errors Are Translated at Every Boundary</a></li><li><a href="#where-the-time-goes">Where the Time Goes</a></li><li><a href="#the-four-question-trace">The Four-Question Trace</a></li><li><a href="#a-worked-trace">A Worked Trace</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

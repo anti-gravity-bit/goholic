@@ -122,3 +122,9 @@ Working personal blog engine. Static export is the public face. Writer desk is l
 ## License
 
 MIT
+
+## Published site
+
+`public/` is the live book site for [Defer Nothing](https://goholic.in/). Vercel serves that directory with no build step. Do not regenerate it with `go run ./cmd/goholic-static` and commit the result: that exporter still builds the old essay index and would replace the book.
+
+Old essay URLs under `/article/` redirect to the book home.

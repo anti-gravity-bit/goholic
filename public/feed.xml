@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>Defer Nothing</title>
+  <link>https://goholic.in/</link>
+  <description>Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.</description>
+  <language>en-in</language>
+  <item>
+  <title>Introduction</title>
+  <link>https://goholic.in/read/introduction/</link>
+  <guid>https://goholic.in/read/introduction/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 1: What Is a Backend, Really?</title>
+  <link>https://goholic.in/read/what-is-a-backend/</link>
+  <guid>https://goholic.in/read/what-is-a-backend/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 2: From Request to Response</title>
+  <link>https://goholic.in/read/from-request-to-response/</link>
+  <guid>https://goholic.in/read/from-request-to-response/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 3: Designing Before Coding</title>
+  <link>https://goholic.in/read/designing-before-coding/</link>
+  <guid>https://goholic.in/read/designing-before-coding/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>The decisions that are expensive to reverse: Forge&#x27;s requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 4: The First Go Service</title>
+  <link>https://goholic.in/read/the-first-go-service/</link>
+  <guid>https://goholic.in/read/the-first-go-service/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.</description>
+  <author>Abir Sarkar</author>
+</item>
+</channel>
+</rss>

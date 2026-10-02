@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 1: What Is a Backend, Really? · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/what-is-a-backend/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 1: What Is a Backend, Really? · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.">
+<meta property="og:url" content="https://goholic.in/read/what-is-a-backend/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 1: What Is a Backend, Really? · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1c1915;
+  --paper: #f4efe6;
+  --paper-2: #e9e2d4;
+  --card: #fbf8f2;
+  --moss: #1e4d3a;
+  --moss-deep: #122e24;
+  --copper: #8d452c;
+  --line: #d8d0c2;
+  --mute: #5f584f;
+  --code: #16211c;
+  --code-ink: #e7efe8;
+  --shadow: 0 18px 50px rgba(28, 25, 21, 0.06);
+  --serif: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+  --display: "Fraunces", "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 42rem;
+  --pad: clamp(1.1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f3eee4;
+    --paper: #141816;
+    --paper-2: #1d2420;
+    --card: #1a211d;
+    --moss: #8fbfa4;
+    --moss-deep: #d7efe2;
+    --copper: #e0a48f;
+    --line: #314038;
+    --mute: #b7aea0;
+    --code: #0d1411;
+    --code-ink: #e7efe8;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #f3eee4;
+  --paper: #141816;
+  --paper-2: #1d2420;
+  --card: #1a211d;
+  --moss: #8fbfa4;
+  --moss-deep: #d7efe2;
+  --copper: #e0a48f;
+  --line: #314038;
+  --mute: #b7aea0;
+  --code: #0d1411;
+  --code-ink: #e7efe8;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(141, 69, 44, 0.08), transparent 60%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--moss-deep); text-underline-offset: 0.18em; }
+a:hover { color: var(--copper); }
+img { max-width: 100%; height: auto; }
+.skip {
+  position: absolute; left: 1rem; top: -4rem; background: var(--moss-deep); color: var(--paper);
+  padding: 0.6rem 0.9rem; z-index: 5;
+}
+.skip:focus { top: 0.6rem; }
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--copper); z-index: 6;
+}
+.site-header {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.85rem var(--pad);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.wordmark {
+  font-family: var(--display); font-weight: 560; letter-spacing: -0.03em;
+  text-decoration: none; color: var(--ink); font-size: 1.2rem;
+}
+.wordmark span { color: var(--copper); }
+.nav { display: flex; gap: 0.9rem; align-items: center; font-size: 0.95rem; }
+.nav a { text-decoration: none; }
+.theme-btn, .nav a.button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 0.35rem 0.75rem; font: inherit; cursor: pointer;
+}
+.shell { width: min(1120px, calc(100% - 2 * var(--pad))); margin: 0 auto; }
+.hero { padding: 3.2rem 0 1.5rem; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 2.5rem; align-items: end; }
+.kicker { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper); }
+h1, h2, h3 { font-family: var(--display); font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; }
+.hero h1 { font-size: clamp(3.1rem, 8vw, 6.4rem); margin: 0.2rem 0 0.4rem; }
+.subtitle { font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; }
+.lede { font-size: 1.25rem; color: var(--mute); max-width: 40rem; }
+.cover-card {
+  background: var(--moss-deep); color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
+  min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+.cover-card p { margin: 0.3rem 0; }
+.cover-card a { color: #f0c7b8; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0 0.4rem; }
+.actions a {
+  text-decoration: none; border-radius: 999px; padding: 0.7rem 1rem;
+  border: 1px solid var(--moss-deep);
+}
+.actions a.primary { background: var(--moss-deep); color: #f6f1e7; }
+.actions a.secondary { background: transparent; color: var(--ink); }
+.grid-2 { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; }
+.panel, .chapter-card, .author-card, .faq details {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.15rem;
+}
+.chapter-list { display: grid; gap: 0.8rem; }
+.chapter-card { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.8rem; text-decoration: none; color: inherit; }
+.chapter-card:hover { border-color: var(--copper); }
+.chapter-card strong { display: block; font-family: var(--display); font-size: 1.25rem; font-weight: 560; }
+.meta { color: var(--mute); font-size: 0.92rem; }
+.principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.7rem; margin: 1rem 0 2rem; }
+.principles div { border-top: 2px solid var(--copper); padding-top: 0.6rem; }
+.principles strong { display: block; font-family: var(--display); }
+.read-layout { display: grid; grid-template-columns: minmax(0, var(--measure)) 16rem; gap: 2.2rem; padding: 1.6rem 0 4rem; }
+article h2 { font-size: 1.7rem; margin-top: 2.1rem; }
+article h3 { font-size: 1.3rem; margin-top: 1.6rem; }
+article p, article li { max-width: var(--measure); }
+article table { width: 100%; border-collapse: collapse; font-size: 0.98rem; margin: 1rem 0 1.4rem; display: block; overflow-x: auto; }
+article th, article td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.55rem 0.7rem; vertical-align: top; }
+article th { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+blockquote {
+  margin: 1.4rem 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 3px solid var(--copper); color: var(--ink);
+}
+pre {
+  background: var(--code); color: var(--code-ink); padding: 1rem 1.05rem; border-radius: 12px;
+  overflow-x: auto; font-family: var(--mono); font-size: 0.86rem; line-height: 1.55;
+}
+code { font-family: var(--mono); font-size: 0.88em; }
+p code, li code, td code { background: var(--paper-2); padding: 0.05em 0.35em; border-radius: 5px; }
+.toc { position: sticky; top: 4.5rem; font-size: 0.92rem; }
+.toc ol { padding-left: 1.1rem; margin: 0.4rem 0 0; }
+.toc a { text-decoration: none; }
+.pager {
+  display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.4rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.pager a { text-decoration: none; max-width: 46%; }
+.cite, .author-strip { color: var(--mute); font-size: 0.95rem; }
+.site-footer { border-top: 1px solid var(--line); padding: 1.4rem var(--pad) 2.4rem; color: var(--mute); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.faq details { margin-bottom: 0.6rem; }
+.faq summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; }
+@media (max-width: 860px) {
+  .hero, .grid-2, .read-layout, .principles { grid-template-columns: 1fr; }
+  .chapter-card { grid-template-columns: 1fr; }
+  .toc { position: static; }
+  .nav span.hide-sm { display: none; }
+}
+@media print {
+  .site-header, .progress, .toc, .theme-btn, .pager, .site-footer { display: none; }
+  body { background: white; color: black; }
+  pre { white-space: pre-wrap; }
+}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 1: What Is a Backend, Really?", "headline": "Chapter 1: What Is a Backend, Really?", "url": "https://goholic.in/read/what-is-a-backend/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-03", "inLanguage": "en", "description": "A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.", "position": 2, "wordCount": 2262, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 1: What Is a Backend, Really?", "item": "https://goholic.in/read/what-is-a-backend/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part I · Thinking in Backends · Chapter 1</p>
+    <h1>Chapter 1: What Is a Backend, Really?</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 10 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Imagine a person tapping a button labeled <strong>Create Task</strong>. A spinner appears for a moment, and then the new task shows up in a list. From the user&rsquo;s side, nothing could be simpler.</p>
+<p>Now ask what had to be true for that to work. The request had to arrive. Someone had to decide whether it was well formed, whether the person was allowed to make it, and whether the task it described made sense. Something had to be written somewhere that survives a restart. Perhaps a notification had to go out. The user then needed an answer that told them, accurately, what happened.</p>
+<p>All of that sits behind one tap. The backend is everything behind it.</p>
+<h2 id="the-definition-that-misleads">The Definition That Misleads</h2>
+<p>The most common definition is that a backend receives HTTP requests and returns responses. It is accurate and nearly useless, because it describes the packaging and says nothing about the work. It is like defining a restaurant as a place where plates move between a kitchen and tables.</p>
+<p>It also quietly trains bad habits. If a backend is &ldquo;a thing that handles requests,&rdquo; then the natural unit of design is the handler, and the natural place for logic is inside it. Chapter 6 will show where that road ends: a single function that parses input, applies rules, talks to the database, writes logs, and formats errors, all tangled together.</p>
+<p>A more useful definition starts from what the system does rather than how it is reached.</p>
+<blockquote>
+<p><strong>A backend is a state-transforming system.</strong> It takes input, decides whether and how that input should change the world, makes the change, and reports the outcome.</p>
+</blockquote>
+<p>Notice what moved to the center: <em>state</em>, and <em>decisions about state</em>. HTTP is how the input arrives. It is not what the system is.</p>
+<h2 id="the-anatomy-of-a-request">The Anatomy of a Request</h2>
+<p>Every meaningful request, whether it arrives over HTTP, gRPC, or a message queue, passes through the same stages in some form.</p>
+<pre><code>Input
+  ↓
+Interpretation
+  ↓
+Validation
+  ↓
+Business decision
+  ↓
+State transition
+  ↓
+Side effects
+  ↓
+Response
+</code></pre>
+<p>Each stage answers a distinct question, and each fails in a distinct way.</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Question it answers</th>
+<th>Typical failure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input</td>
+<td>What exactly did we receive?</td>
+<td>Truncated body, wrong content type, oversized payload</td>
+</tr>
+<tr>
+<td>Interpretation</td>
+<td>What is the caller trying to do?</td>
+<td>Unknown fields, ambiguous meaning, malformed JSON</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Is this acceptable on its face?</td>
+<td>Missing title, negative quantity, invalid format</td>
+</tr>
+<tr>
+<td>Business decision</td>
+<td>Should this be allowed right now?</td>
+<td>Task already completed, user lacks permission, quota exceeded</td>
+</tr>
+<tr>
+<td>State transition</td>
+<td>What changes, and is the result valid?</td>
+<td>Half-written data, lost update, constraint violation</td>
+</tr>
+<tr>
+<td>Side effects</td>
+<td>What else must happen because of this?</td>
+<td>Email not sent, event not published, cache left stale</td>
+</tr>
+<tr>
+<td>Response</td>
+<td>What do we tell the caller?</td>
+<td>Success reported for a failure, or failure for a success</td>
+</tr>
+</tbody>
+</table>
+<p>The distinction between the middle stages deserves attention. <strong>Validation</strong> checks the request in isolation: is a title present, is the ID well formed? <strong>A business decision</strong> checks the request against the current state of the world: is this task allowed to move from <code>pending</code> to <code>completed</code> given what it is right now? The first needs only the input. The second needs the system&rsquo;s memory. Mixing them is one of the most common sources of confused code.</p>
+<h2 id="following-one-request-through-forge">Following One Request Through Forge</h2>
+<p>Take the first thing Forge will ever do. A client sends:</p>
+<pre><code>POST /tasks
+{ &quot;title&quot;: &quot;Write chapter one&quot; }
+</code></pre>
+<p><strong>Input and interpretation.</strong> The server receives bytes, recognizes them as JSON, and extracts a title. At this point it knows what the caller said, not whether it is valid.</p>
+<p><strong>Validation.</strong> The title is present and within a sensible length. If it were missing, the request would be rejected here, cheaply, before anything expensive happens.</p>
+<p><strong>Business decision.</strong> Is this caller allowed to create tasks? Have they exceeded a limit? For now, Forge has no rules here, but a place for them already exists.</p>
+<p><strong>State transition.</strong> A new task is created in the <code>pending</code> state and stored. This is the moment the system&rsquo;s memory changes. Everything before it was thinking. This is acting.</p>
+<p><strong>Side effects.</strong> Perhaps an audit record is written, or an event is emitted for other parts of the system. These are consequences of the change that live outside the change itself.</p>
+<p><strong>Response.</strong> The caller learns the task&rsquo;s ID and its state. The response must reflect what truly happened, not what was intended.</p>
+<p>Written out this way, the request looks orderly. The rest of this chapter is about everything that makes it less orderly in practice.</p>
+<h2 id="state-is-what-remains">State Is What Remains</h2>
+<p>A request is temporary. It arrives, is processed, and disappears. <strong>State</strong> is what remains afterward and shapes how future requests behave.</p>
+<p>When Forge creates a task, the request is gone within milliseconds, but the task persists. The next request, perhaps from a different client on a different day, will find it. That persistence is what makes the system useful, and also what makes it dangerous, because the cost of an incorrect state transition is paid long after the request that caused it.</p>
+<p>This leads to a question that Chapter 11 will treat in depth: <em>where does the state actually live, and which copy is the truth?</em> A task might exist in a database, in a cache, in a queue message, and in the client&rsquo;s memory at once. When they disagree, one of them is right, and the system must know which. For now, hold the idea that every backend is, at its core, a custodian of state, and its first duty is to keep that state valid.</p>
+<h2 id="business-rules-and-invariants">Business Rules and Invariants</h2>
+<p>A rule such as &ldquo;a completed task cannot be started again&rdquo; is not an implementation detail. It is a statement about what states and transitions are legal in the system. Rules of this kind, which must hold no matter how the system is reached, are called <strong>invariants</strong>.</p>
+<p>Consider the lifecycle Forge will enforce:</p>
+<pre><code>pending
+  │
+  ▼
+running
+  │
+  ├──────► failed
+  │
+  ▼
+completed
+</code></pre>
+<p>This small diagram contains real decisions. Can a <code>failed</code> task be retried? Can a <code>pending</code> task jump straight to <code>completed</code>? Who is allowed to cancel? Each answer is a business rule, and each rule must be enforced somewhere that cannot be bypassed. If enforcement lives only in one handler, the next handler, background job, or script that touches tasks can break it silently.</p>
+<p>Chapter 3 designs these rules before any code is written. Chapter 18 shows how to make the code itself refuse invalid transitions. Here the point is simpler: a backend exists to decide, and its decisions must be consistent.</p>
+<h2 id="dependencies-and-side-effects">Dependencies and Side Effects</h2>
+<p>Almost no backend works alone. Forge will talk to a database, a cache, a message broker, and perhaps external services for email or payments. These are <strong>dependencies</strong>, and each one introduces something your code does not control: its speed, its availability, its behavior under load.</p>
+<p>A <strong>side effect</strong> is any consequence of a request that happens outside the system&rsquo;s own state, such as sending an email, publishing an event, or charging a card. Side effects are especially important because they are often impossible to undo. A row can be rolled back. An email cannot be unsent.</p>
+<p>Dependencies and side effects are where most real-world complexity enters. A function that only transforms data in memory is easy to reason about. A function that writes to a database, calls a payment provider, and publishes an event has three ways to fail partway through.</p>
+<h2 id="failure-is-ordinary">Failure Is Ordinary</h2>
+<p>Return to the creation of a task and add one realistic detail: after storing the task, Forge sends a notification.</p>
+<pre><code>1. Store the task          → succeeds
+2. Send the notification   → fails
+3. Respond to the caller   → ???
+</code></pre>
+<p>What should step 3 say? If it reports success, the caller believes the notification went out when it did not. If it reports failure, the caller may retry, and now the task exists twice. If the process crashes between steps 1 and 2, no response is sent at all, and the system is left in a state nobody chose.</p>
+<p>There is no clever trick that makes this go away. The lesson is a change of attitude: <strong>partial failure is not an edge case, it is the normal condition of any system that does more than one thing.</strong> Good backends are not those where nothing fails. They are those where every failure leaves the system in a state that is valid, understood, and recoverable. The second principle of this book, make failure ordinary, begins here.</p>
+<h2 id="concurrency-the-world-does-not-wait-its-turn">Concurrency: The World Does Not Wait Its Turn</h2>
+<p>Everything above assumed one request at a time. Real traffic does not cooperate.</p>
+<p>Suppose two workers both read a task, find it <code>pending</code>, and decide to start it. Each is acting correctly given what it saw. Both then write <code>running</code>. The task has now been started twice, and neither worker did anything wrong. The bug is in the gap between reading and writing, and it appears only when timing aligns badly, which makes it rare in testing and common in production.</p>
+<p>A backend serves many callers at once, so every piece of shared state is a place where two actors might collide. Part V treats concurrency in depth, but the habit begins now: whenever you read a decision from the current state and then act on it, ask what happens if someone else changes that state in between.</p>
+<h2 id="observability-can-you-see-what-happened">Observability: Can You See What Happened?</h2>
+<p>Imagine one of those failures has occurred. A customer reports that their task is stuck. What can you learn?</p>
+<p>If the system produced nothing but silence, you can only guess. If it recorded which request arrived, what decision was made, which dependency was slow, and where the error occurred, you can reconstruct the story. The difference between those two situations is <strong>observability</strong>: the property that lets you understand a system&rsquo;s internal behavior from the outside.</p>
+<p>It is easy to treat this as an operational afterthought. It is better to treat it as a design requirement, because a backend you cannot inspect is one you cannot safely change. Part VI covers logs, metrics, and traces. For now, accept the idea that a production backend must be able to explain itself.</p>
+<h2 id="the-eight-concerns">The Eight Concerns</h2>
+<p>Over the course of this chapter, eight concerns have appeared. Together they form the real subject of backend engineering, and the rest of the book unfolds them in order.</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>The core question</th>
+<th>Where the book treats it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Requests</td>
+<td>How does input enter and get understood?</td>
+<td>Part II</td>
+</tr>
+<tr>
+<td>State</td>
+<td>Where is the truth, and how is it kept valid?</td>
+<td>Part III</td>
+</tr>
+<tr>
+<td>Business rules</td>
+<td>What decisions must always hold?</td>
+<td>Part IV</td>
+</tr>
+<tr>
+<td>Persistence</td>
+<td>How does state survive restarts and crashes?</td>
+<td>Part III</td>
+</tr>
+<tr>
+<td>Dependencies</td>
+<td>What do we rely on that we do not control?</td>
+<td>Parts III, V, VI</td>
+</tr>
+<tr>
+<td>Failures</td>
+<td>What happens when something goes wrong halfway?</td>
+<td>Part VI</td>
+</tr>
+<tr>
+<td>Concurrency</td>
+<td>What happens when many things happen at once?</td>
+<td>Part V</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>Can we see and explain what the system did?</td>
+<td>Part VI</td>
+</tr>
+</tbody>
+</table>
+<p>A handler touches the first of these and quietly depends on all the others. That is why a backend cannot be understood by studying handlers alone.</p>
+<h2 id="the-key-idea">The Key Idea</h2>
+<blockquote>
+<p><strong>A backend is a state-transforming system.</strong> Its job is to accept input, make correct decisions about state, change that state safely, and stay understandable when things go wrong.</p>
+</blockquote>
+<p>Everything else in this book, from routing to Kafka to Kubernetes, is either a way to do that job at larger scale or a way to notice when it is going wrong.</p>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We replaced the shallow idea of a backend as a request handler with a model built around state, decisions, and consequences, and we gave ourselves eight concerns to organize everything that follows.</p>
+<p><strong>What complexity did we introduce?</strong> A larger vocabulary before any code. Readers who prefer to start typing will feel the delay. The vocabulary is worth it because every later technique attaches to one of these concerns.</p>
+<p><strong>What failure modes appeared?</strong> Partial completion across multiple steps, duplicate effects from retries, lost updates from concurrent access, and invisible failures from missing observability. Each reappears later with a concrete solution.</p>
+<p><strong>What would break at 10× scale?</strong> The concerns that seem theoretical at low traffic become the dominant ones. Concurrency collisions move from rare to routine, slow dependencies cascade, and the absence of observability turns every incident into guesswork.</p>
+<p><strong>When should we not use this way of thinking?</strong> For a throwaway script or a prototype that will be discarded in a week, this much rigor is overkill. The model pays off once the system holds state that matters and serves callers you cannot control.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Pick a backend you use daily, such as a food delivery app or a banking app. Trace one action through the seven stages. Where does validation end and the business decision begin?</li>
+<li>For the Forge lifecycle shown above, list every possible transition between states and mark which you would allow. What new states would you add for cancelled tasks?</li>
+<li>Write down two side effects of creating a task that cannot be rolled back. What would you do if the second one failed after the first succeeded?</li>
+<li>Describe a scenario where two requests could corrupt a task&rsquo;s state if they arrived at the same moment. What would the system need to know to prevent it?</li>
+</ol>
+<p>In the next chapter, we follow a single request at the level of the network and the code, from the first byte arriving to the last byte leaving, and learn to trace execution the way an experienced backend engineer does.</p>
+    <nav class="pager" aria-label="Chapter"><a href="/read/introduction/">← Introduction</a><a href="/read/from-request-to-response/">Chapter 2 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 1: What Is a Backend, Really?,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/what-is-a-backend/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-definition-that-misleads">The Definition That Misleads</a></li><li><a href="#the-anatomy-of-a-request">The Anatomy of a Request</a></li><li><a href="#following-one-request-through-forge">Following One Request Through Forge</a></li><li><a href="#state-is-what-remains">State Is What Remains</a></li><li><a href="#business-rules-and-invariants">Business Rules and Invariants</a></li><li><a href="#dependencies-and-side-effects">Dependencies and Side Effects</a></li><li><a href="#failure-is-ordinary">Failure Is Ordinary</a></li><li><a href="#concurrency-the-world-does-not-wait-its-turn">Concurrency: The World Does Not Wait Its Turn</a></li><li><a href="#observability-can-you-see-what-happened">Observability: Can You See What Happened?</a></li><li><a href="#the-eight-concerns">The Eight Concerns</a></li><li><a href="#the-key-idea">The Key Idea</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

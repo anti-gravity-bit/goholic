@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 4: The First Go Service · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/the-first-go-service/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 4: The First Go Service · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.">
+<meta property="og:url" content="https://goholic.in/read/the-first-go-service/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 4: The First Go Service · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1c1915;
+  --paper: #f4efe6;
+  --paper-2: #e9e2d4;
+  --card: #fbf8f2;
+  --moss: #1e4d3a;
+  --moss-deep: #122e24;
+  --copper: #8d452c;
+  --line: #d8d0c2;
+  --mute: #5f584f;
+  --code: #16211c;
+  --code-ink: #e7efe8;
+  --shadow: 0 18px 50px rgba(28, 25, 21, 0.06);
+  --serif: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+  --display: "Fraunces", "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 42rem;
+  --pad: clamp(1.1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f3eee4;
+    --paper: #141816;
+    --paper-2: #1d2420;
+    --card: #1a211d;
+    --moss: #8fbfa4;
+    --moss-deep: #d7efe2;
+    --copper: #e0a48f;
+    --line: #314038;
+    --mute: #b7aea0;
+    --code: #0d1411;
+    --code-ink: #e7efe8;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #f3eee4;
+  --paper: #141816;
+  --paper-2: #1d2420;
+  --card: #1a211d;
+  --moss: #8fbfa4;
+  --moss-deep: #d7efe2;
+  --copper: #e0a48f;
+  --line: #314038;
+  --mute: #b7aea0;
+  --code: #0d1411;
+  --code-ink: #e7efe8;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(141, 69, 44, 0.08), transparent 60%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--moss-deep); text-underline-offset: 0.18em; }
+a:hover { color: var(--copper); }
+img { max-width: 100%; height: auto; }
+.skip {
+  position: absolute; left: 1rem; top: -4rem; background: var(--moss-deep); color: var(--paper);
+  padding: 0.6rem 0.9rem; z-index: 5;
+}
+.skip:focus { top: 0.6rem; }
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--copper); z-index: 6;
+}
+.site-header {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.85rem var(--pad);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.wordmark {
+  font-family: var(--display); font-weight: 560; letter-spacing: -0.03em;
+  text-decoration: none; color: var(--ink); font-size: 1.2rem;
+}
+.wordmark span { color: var(--copper); }
+.nav { display: flex; gap: 0.9rem; align-items: center; font-size: 0.95rem; }
+.nav a { text-decoration: none; }
+.theme-btn, .nav a.button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 0.35rem 0.75rem; font: inherit; cursor: pointer;
+}
+.shell { width: min(1120px, calc(100% - 2 * var(--pad))); margin: 0 auto; }
+.hero { padding: 3.2rem 0 1.5rem; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 2.5rem; align-items: end; }
+.kicker { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper); }
+h1, h2, h3 { font-family: var(--display); font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; }
+.hero h1 { font-size: clamp(3.1rem, 8vw, 6.4rem); margin: 0.2rem 0 0.4rem; }
+.subtitle { font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; }
+.lede { font-size: 1.25rem; color: var(--mute); max-width: 40rem; }
+.cover-card {
+  background: var(--moss-deep); color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
+  min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+.cover-card p { margin: 0.3rem 0; }
+.cover-card a { color: #f0c7b8; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0 0.4rem; }
+.actions a {
+  text-decoration: none; border-radius: 999px; padding: 0.7rem 1rem;
+  border: 1px solid var(--moss-deep);
+}
+.actions a.primary { background: var(--moss-deep); color: #f6f1e7; }
+.actions a.secondary { background: transparent; color: var(--ink); }
+.grid-2 { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; }
+.panel, .chapter-card, .author-card, .faq details {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.15rem;
+}
+.chapter-list { display: grid; gap: 0.8rem; }
+.chapter-card { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.8rem; text-decoration: none; color: inherit; }
+.chapter-card:hover { border-color: var(--copper); }
+.chapter-card strong { display: block; font-family: var(--display); font-size: 1.25rem; font-weight: 560; }
+.meta { color: var(--mute); font-size: 0.92rem; }
+.principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.7rem; margin: 1rem 0 2rem; }
+.principles div { border-top: 2px solid var(--copper); padding-top: 0.6rem; }
+.principles strong { display: block; font-family: var(--display); }
+.read-layout { display: grid; grid-template-columns: minmax(0, var(--measure)) 16rem; gap: 2.2rem; padding: 1.6rem 0 4rem; }
+article h2 { font-size: 1.7rem; margin-top: 2.1rem; }
+article h3 { font-size: 1.3rem; margin-top: 1.6rem; }
+article p, article li { max-width: var(--measure); }
+article table { width: 100%; border-collapse: collapse; font-size: 0.98rem; margin: 1rem 0 1.4rem; display: block; overflow-x: auto; }
+article th, article td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.55rem 0.7rem; vertical-align: top; }
+article th { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+blockquote {
+  margin: 1.4rem 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 3px solid var(--copper); color: var(--ink);
+}
+pre {
+  background: var(--code); color: var(--code-ink); padding: 1rem 1.05rem; border-radius: 12px;
+  overflow-x: auto; font-family: var(--mono); font-size: 0.86rem; line-height: 1.55;
+}
+code { font-family: var(--mono); font-size: 0.88em; }
+p code, li code, td code { background: var(--paper-2); padding: 0.05em 0.35em; border-radius: 5px; }
+.toc { position: sticky; top: 4.5rem; font-size: 0.92rem; }
+.toc ol { padding-left: 1.1rem; margin: 0.4rem 0 0; }
+.toc a { text-decoration: none; }
+.pager {
+  display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.4rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.pager a { text-decoration: none; max-width: 46%; }
+.cite, .author-strip { color: var(--mute); font-size: 0.95rem; }
+.site-footer { border-top: 1px solid var(--line); padding: 1.4rem var(--pad) 2.4rem; color: var(--mute); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.faq details { margin-bottom: 0.6rem; }
+.faq summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; }
+@media (max-width: 860px) {
+  .hero, .grid-2, .read-layout, .principles { grid-template-columns: 1fr; }
+  .chapter-card { grid-template-columns: 1fr; }
+  .toc { position: static; }
+  .nav span.hide-sm { display: none; }
+}
+@media print {
+  .site-header, .progress, .toc, .theme-btn, .pager, .site-footer { display: none; }
+  body { background: white; color: black; }
+  pre { white-space: pre-wrap; }
+}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 4: The First Go Service", "headline": "Chapter 4: The First Go Service", "url": "https://goholic.in/read/the-first-go-service/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-03", "inLanguage": "en", "description": "The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.", "position": 5, "wordCount": 3249, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 4: The First Go Service", "item": "https://goholic.in/read/the-first-go-service/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part I · Thinking in Backends · Chapter 4</p>
+    <h1>Chapter 4: The First Go Service</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 14 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Three chapters in, you have a vocabulary, a physical map of a request, and a design for Forge. This chapter writes the code.</p>
+<p>We will not study Go as a language. We will build the smallest version of Forge that honors the design from Chapter 3, and each piece of Go appears at the moment the system needs it. By the end you will have a running service, a test suite, and an honest list of what the service still gets wrong.</p>
+<p>You will need Go 1.22 or newer, because the router we use relies on method-aware patterns introduced in that release.</p>
+<h2 id="the-smallest-possible-server">The Smallest Possible Server</h2>
+<p>Here is a complete web server:</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+    &quot;net/http&quot;
+)
+
+func main() {
+    http.HandleFunc(&quot;/health&quot;, func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintln(w, &quot;ok&quot;)
+    })
+    http.ListenAndServe(&quot;:8080&quot;, nil)
+}
+</code></pre>
+<p>Run it with <code>go run .</code> and visit <code>localhost:8080/health</code>. It works, which is exactly the problem.</p>
+<p>Look at the last line. <code>ListenAndServe</code> returns an error, and we ignored it. If port 8080 is already taken, the program exits silently and nothing tells us why. This is the first small act of deferring: we assumed success and postponed the question of failure. The Go compiler allowed it without complaint, which is a reminder that Go gives you tools and trusts you to use them.</p>
+<p>The same line has a second problem. The default server has no timeouts, so a client that connects and sends nothing holds a connection open indefinitely. Chapter 2 warned about slow clients, and this is where that warning applies. Here is the version we will actually use:</p>
+<pre><code class="language-go">httpServer := &amp;http.Server{
+    Addr:              &quot;:8080&quot;,
+    Handler:           srv.routes(),
+    ReadHeaderTimeout: 5 * time.Second,
+    ReadTimeout:       10 * time.Second,
+    WriteTimeout:      10 * time.Second,
+    IdleTimeout:       60 * time.Second,
+}
+</code></pre>
+<p>Two lines of difference, and the server now bounds how long it will wait on any client. This is the book&rsquo;s habit in miniature: decide how it fails at the moment you decide how it works.</p>
+<h2 id="setting-up-the-project">Setting Up the Project</h2>
+<p>Go organizes code into <strong>packages</strong> and packages into <strong>modules</strong>. A package is a directory of files that share a name and are compiled together. A module is a collection of packages with a version, described by a <code>go.mod</code> file at its root.</p>
+<pre><code>mkdir forge &amp;&amp; cd forge
+go mod init forge
+</code></pre>
+<p>The <code>main</code> package is special: it produces an executable, and its <code>main</code> function is where execution starts. For now everything in Forge lives in one package. This is a deliberate under-structuring. Chapter 17 splits the code into packages once there is a reason to, and the pain of this single package will be part of that reason.</p>
+<p>The service will have four files.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>task.go</code></td>
+<td>The Task type, statuses, and title validation</td>
+</tr>
+<tr>
+<td><code>store.go</code></td>
+<td>Where tasks are kept in memory</td>
+</tr>
+<tr>
+<td><code>handlers.go</code></td>
+<td>HTTP handlers and the router</td>
+</tr>
+<tr>
+<td><code>main.go</code></td>
+<td>Starting the server</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-task">The Task</h2>
+<p>Chapter 3 defined a task with five fields and five statuses. Go expresses this with a <strong>struct</strong>, a named collection of fields, and a set of constants.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;errors&quot;
+    &quot;fmt&quot;
+    &quot;time&quot;
+    &quot;unicode/utf8&quot;
+)
+
+type Status string
+
+const (
+    StatusPending   Status = &quot;pending&quot;
+    StatusRunning   Status = &quot;running&quot;
+    StatusCompleted Status = &quot;completed&quot;
+    StatusFailed    Status = &quot;failed&quot;
+    StatusCancelled Status = &quot;cancelled&quot;
+)
+
+const maxTitleLength = 200
+
+type Task struct {
+    ID        string    `json:&quot;id&quot;`
+    Title     string    `json:&quot;title&quot;`
+    Status    Status    `json:&quot;status&quot;`
+    CreatedAt time.Time `json:&quot;created_at&quot;`
+    UpdatedAt time.Time `json:&quot;updated_at&quot;`
+}
+
+func validateTitle(title string) error {
+    if title == &quot;&quot; {
+        return errors.New(&quot;title is required&quot;)
+    }
+    if utf8.RuneCountInString(title) &gt; maxTitleLength {
+        return fmt.Errorf(&quot;title must be at most %d characters&quot;, maxTitleLength)
+    }
+    return nil
+}
+</code></pre>
+<p>Several Go ideas appear here, each doing real work.</p>
+<table>
+<thead>
+<tr>
+<th>Idea</th>
+<th>Where it appears</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Named type</td>
+<td><code>type Status string</code></td>
+<td>Gives status values their own type, so the compiler distinguishes them from arbitrary strings</td>
+</tr>
+<tr>
+<td>Struct tags</td>
+<td><code>`json:"created_at"`</code></td>
+<td>Tells the JSON encoder which field name to use, matching our API contract</td>
+</tr>
+<tr>
+<td>Functions returning <code>error</code></td>
+<td><code>validateTitle</code></td>
+<td>Reports failure as an ordinary return value instead of an exception</td>
+</tr>
+<tr>
+<td><code>nil</code></td>
+<td><code>return nil</code></td>
+<td>Means &ldquo;no error.&rdquo; An error is just a value, and <code>nil</code> is the absence of one</td>
+</tr>
+</tbody>
+</table>
+<p>A note on the title check. We count <em>runes</em> (characters) with <code>utf8.RuneCountInString</code> rather than bytes with <code>len</code>. A title in Bengali or Japanese uses several bytes per character, and counting bytes would reject titles that are well under 200 characters. The Chapter 3 invariant said 200 characters, so the code must count characters.</p>
+<p>Notice also what the code does <em>not</em> enforce. <code>Status</code> is a distinct type, but Go will still happily let you assign <code>Status("banana")</code>. The invariant &ldquo;status is always one of the defined states&rdquo; is documented, not guaranteed. Chapter 18 closes that gap.</p>
+<h2 id="the-store">The Store</h2>
+<p>Forge needs somewhere to keep tasks. For now that is a map in memory, which is the simplest thing that satisfies &ldquo;create, fetch, list.&rdquo;</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;crypto/rand&quot;
+    &quot;encoding/hex&quot;
+    &quot;errors&quot;
+    &quot;sort&quot;
+    &quot;sync&quot;
+    &quot;time&quot;
+)
+
+var ErrNotFound = errors.New(&quot;task not found&quot;)
+
+type Store struct {
+    mu    sync.RWMutex
+    tasks map[string]Task
+}
+
+func NewStore() *Store {
+    return &amp;Store{tasks: make(map[string]Task)}
+}
+
+func newID() (string, error) {
+    b := make([]byte, 6)
+    if _, err := rand.Read(b); err != nil {
+        return &quot;&quot;, err
+    }
+    return &quot;tsk_&quot; + hex.EncodeToString(b), nil
+}
+
+func (s *Store) Create(title string) (Task, error) {
+    id, err := newID()
+    if err != nil {
+        return Task{}, err
+    }
+
+    now := time.Now().UTC()
+    task := Task{
+        ID:        id,
+        Title:     title,
+        Status:    StatusPending,
+        CreatedAt: now,
+        UpdatedAt: now,
+    }
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.tasks[id] = task
+    return task, nil
+}
+
+func (s *Store) Get(id string) (Task, error) {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    task, ok := s.tasks[id]
+    if !ok {
+        return Task{}, ErrNotFound
+    }
+    return task, nil
+}
+
+func (s *Store) List() []Task {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    tasks := make([]Task, 0, len(s.tasks))
+    for _, task := range s.tasks {
+        tasks = append(tasks, task)
+    }
+    sort.Slice(tasks, func(i, j int) bool {
+        if tasks[i].CreatedAt.Equal(tasks[j].CreatedAt) {
+            return tasks[i].ID &lt; tasks[j].ID
+        }
+        return tasks[i].CreatedAt.Before(tasks[j].CreatedAt)
+    })
+    return tasks
+}
+</code></pre>
+<p>This file introduces more Go than any other in the chapter, so it is worth slowing down.</p>
+<p><strong>Maps and slices.</strong> <code>map[string]Task</code> is a lookup table from ID to task. <code>[]Task</code> is a slice, a growable list. <code>List</code> copies the map&rsquo;s values into a slice because maps have no defined order, and an API that returns tasks in random order is a bug waiting for a client to depend on it. We sort by creation time, and break ties by ID so the order is fully deterministic. Notice <code>make([]Task, 0, len(s.tasks))</code>: it creates an empty but non-nil slice. That matters, because a nil slice encodes to JSON as <code>null</code>, and our contract promises a list, so an empty store must produce <code>[]</code>.</p>
+<p><strong>Pointers and methods.</strong> <code>NewStore</code> returns <code>*Store</code>, a <em>pointer</em> to a Store, and the methods are declared on <code>*Store</code>. A pointer refers to the one real Store rather than a copy. If the methods received copies, each would operate on its own private map and nothing would ever be shared. Methods are functions attached to a type, and the <code>(s *Store)</code> before the name is the receiver, the thing the method acts on.</p>
+<p><strong>Errors.</strong> <code>ErrNotFound</code> is a <em>sentinel error</em>, a named, package-level error value that callers can recognize. Go has no exceptions. A function that can fail returns an <code>error</code> alongside its result, and the caller checks it immediately. This feels repetitive at first, and it is deliberate: every failure point is visible in the code. <code>error</code> is itself an interface, a type defined by behavior rather than structure, and we will use that fact more in Chapter 28.</p>
+<p><strong>Returning copies.</strong> <code>Get</code> returns a <code>Task</code> value, not a pointer into the map. The caller receives a copy, so nothing outside the store can modify stored data without going through the store. This is a small decision that protects an invariant.</p>
+<p><strong>The mutex and <code>defer</code>.</strong> Here the book&rsquo;s title finally appears in code. A <code>sync.RWMutex</code> is a lock: any number of readers may hold it at once, but a writer holds it alone. And look at how it is used:</p>
+<pre><code class="language-go">s.mu.Lock()
+defer s.mu.Unlock()
+</code></pre>
+<p><code>defer</code> schedules a call to run when the surrounding function returns, by any path. We acquire the lock and, on the very next line, state when it will be released. Whether the function returns normally, returns early, or panics, the lock is released. Compare the alternative, where an <code>Unlock</code> placed at the bottom of the function is skipped by an early <code>return</code> someone adds next year. This is the idea the book is named after: the cleanup is decided at the moment of acquisition.</p>
+<p>You may wonder why a lock is here at all, since we have not written any concurrent code. We did not need to. Go&rsquo;s HTTP server handles every incoming request in its own goroutine, so our handlers already run concurrently, and a plain map shared between them is a data race. Part V explains goroutines and locks properly. For now, accept that the lock is required and verify it yourself in the exercises.</p>
+<h2 id="the-handlers-and-the-router">The Handlers and the Router</h2>
+<p>Now the layer that speaks HTTP. This is the handler role from Chapter 2: decode the request, call the application, encode the response.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;encoding/json&quot;
+    &quot;errors&quot;
+    &quot;log&quot;
+    &quot;net/http&quot;
+    &quot;strings&quot;
+)
+
+type Server struct {
+    store *Store
+}
+
+type createTaskRequest struct {
+    Title string `json:&quot;title&quot;`
+}
+
+type errorBody struct {
+    Error errorDetail `json:&quot;error&quot;`
+}
+
+type errorDetail struct {
+    Code    string `json:&quot;code&quot;`
+    Message string `json:&quot;message&quot;`
+}
+
+func (s *Server) routes() http.Handler {
+    mux := http.NewServeMux()
+    mux.HandleFunc(&quot;POST /tasks&quot;, s.createTask)
+    mux.HandleFunc(&quot;GET /tasks&quot;, s.listTasks)
+    mux.HandleFunc(&quot;GET /tasks/{id}&quot;, s.getTask)
+    return mux
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+    w.Header().Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+    w.WriteHeader(status)
+    if err := json.NewEncoder(w).Encode(v); err != nil {
+        log.Printf(&quot;write response: %v&quot;, err)
+    }
+}
+
+func writeError(w http.ResponseWriter, status int, code, message string) {
+    writeJSON(w, status, errorBody{Error: errorDetail{Code: code, Message: message}})
+}
+
+func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
+    r.Body = http.MaxBytesReader(w, r.Body, 1&lt;&lt;20)
+
+    var req createTaskRequest
+    if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil {
+        writeError(w, http.StatusBadRequest, &quot;INVALID_ARGUMENT&quot;, &quot;request body must be valid JSON&quot;)
+        return
+    }
+
+    title := strings.TrimSpace(req.Title)
+    if err := validateTitle(title); err != nil {
+        writeError(w, http.StatusBadRequest, &quot;INVALID_ARGUMENT&quot;, err.Error())
+        return
+    }
+
+    task, err := s.store.Create(title)
+    if err != nil {
+        log.Printf(&quot;create task: %v&quot;, err)
+        writeError(w, http.StatusInternalServerError, &quot;INTERNAL&quot;, &quot;internal error&quot;)
+        return
+    }
+
+    writeJSON(w, http.StatusCreated, task)
+}
+
+func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {
+    writeJSON(w, http.StatusOK, s.store.List())
+}
+
+func (s *Server) getTask(w http.ResponseWriter, r *http.Request) {
+    task, err := s.store.Get(r.PathValue(&quot;id&quot;))
+    if err != nil {
+        if errors.Is(err, ErrNotFound) {
+            writeError(w, http.StatusNotFound, &quot;NOT_FOUND&quot;, &quot;task not found&quot;)
+            return
+        }
+        log.Printf(&quot;get task: %v&quot;, err)
+        writeError(w, http.StatusInternalServerError, &quot;INTERNAL&quot;, &quot;internal error&quot;)
+        return
+    }
+
+    writeJSON(w, http.StatusOK, task)
+}
+</code></pre>
+<p>Read <code>createTask</code> as a sequence of stages from Chapter 1. It limits the input size (<strong>input</strong>), decodes JSON (<strong>interpretation</strong>), trims and validates the title (<strong>validation</strong>), stores the task (<strong>state transition</strong>), and responds (<strong>response</strong>). The business decision stage is empty for now, since Forge has no rules about who may create tasks. The structure is already there, waiting for the rules.</p>
+<p>A few details connect directly to earlier chapters.</p>
+<p><strong>The error shape is the contract.</strong> <code>writeError</code> produces exactly the JSON from Chapter 3, so every failure uses one format. Handlers never build error responses by hand.</p>
+<p><strong>Errors are translated at the boundary.</strong> <code>getTask</code> receives <code>ErrNotFound</code> from the store, which is storage vocabulary, and converts it to a 404 with a client-facing code. It uses <code>errors.Is</code> rather than <code>==</code>, so the check still works when an error has been wrapped with extra context, a technique Chapter 28 develops. Any <em>other</em> error becomes a generic 500 with the detail logged server-side and kept away from the client.</p>
+<p><strong>Interfaces appear naturally.</strong> <code>routes()</code> returns an <code>http.Handler</code>, which is an interface: any type with a <code>ServeHTTP</code> method qualifies. <code>http.ResponseWriter</code> is also an interface. We have used interfaces for two chapters without defining one ourselves, which is typical. Go interfaces describe what a value can do, and the standard library is full of them.</p>
+<p><strong>Routing is declarative.</strong> Patterns such as <code>"GET /tasks/{id}"</code> bind a method and a path to a handler, and <code>r.PathValue("id")</code> retrieves the wildcard. The router returns 404 or 405 for everything else, as Chapter 2 described.</p>
+<h2 id="starting-the-server">Starting the Server</h2>
+<pre><code class="language-go">package main
+
+import (
+    &quot;log&quot;
+    &quot;net/http&quot;
+    &quot;time&quot;
+)
+
+func main() {
+    srv := &amp;Server{store: NewStore()}
+
+    httpServer := &amp;http.Server{
+        Addr:              &quot;:8080&quot;,
+        Handler:           srv.routes(),
+        ReadHeaderTimeout: 5 * time.Second,
+        ReadTimeout:       10 * time.Second,
+        WriteTimeout:      10 * time.Second,
+        IdleTimeout:       60 * time.Second,
+    }
+
+    log.Println(&quot;forge listening on :8080&quot;)
+    if err := httpServer.ListenAndServe(); err != nil {
+        log.Fatal(err)
+    }
+}
+</code></pre>
+<p>This time we check the error. If the port is taken, the program says so and exits with a non-zero status.</p>
+<p>Run it with <code>go run .</code> and try the contract:</p>
+<pre><code>$ curl -s -X POST localhost:8080/tasks -d '{&quot;title&quot;:&quot;Write chapter one&quot;}'
+{&quot;id&quot;:&quot;tsk_8f3a1c9d2b47&quot;,&quot;title&quot;:&quot;Write chapter one&quot;,&quot;status&quot;:&quot;pending&quot;,&quot;created_at&quot;:&quot;2026-10-03T09:14:00.512Z&quot;,&quot;updated_at&quot;:&quot;2026-10-03T09:14:00.512Z&quot;}
+
+$ curl -s localhost:8080/tasks/tsk_8f3a1c9d2b47
+{&quot;id&quot;:&quot;tsk_8f3a1c9d2b47&quot;, ... }
+
+$ curl -s -X POST localhost:8080/tasks -d '{}'
+{&quot;error&quot;:{&quot;code&quot;:&quot;INVALID_ARGUMENT&quot;,&quot;message&quot;:&quot;title is required&quot;}}
+
+$ curl -s localhost:8080/tasks/tsk_nope
+{&quot;error&quot;:{&quot;code&quot;:&quot;NOT_FOUND&quot;,&quot;message&quot;:&quot;task not found&quot;}}
+</code></pre>
+<p>Each response matches the contract we wrote before there was any code. That is the payoff of Chapter 3: the code has a target, and you can check it against the target.</p>
+<h2 id="testing-it">Testing It</h2>
+<p>A service you cannot test is a service you cannot safely change. Go&rsquo;s standard library includes everything needed to test a handler without starting a real server.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;encoding/json&quot;
+    &quot;net/http&quot;
+    &quot;net/http/httptest&quot;
+    &quot;strings&quot;
+    &quot;sync&quot;
+    &quot;testing&quot;
+)
+
+func newTestHandler() http.Handler {
+    return (&amp;Server{store: NewStore()}).routes()
+}
+
+func TestCreateTask(t *testing.T) {
+    h := newTestHandler()
+
+    tests := []struct {
+        name       string
+        body       string
+        wantStatus int
+    }{
+        {&quot;valid&quot;, `{&quot;title&quot;:&quot;Write chapter one&quot;}`, http.StatusCreated},
+        {&quot;missing title&quot;, `{}`, http.StatusBadRequest},
+        {&quot;blank title&quot;, `{&quot;title&quot;:&quot;   &quot;}`, http.StatusBadRequest},
+        {&quot;too long&quot;, `{&quot;title&quot;:&quot;` + strings.Repeat(&quot;a&quot;, 201) + `&quot;}`, http.StatusBadRequest},
+        {&quot;not json&quot;, `not json`, http.StatusBadRequest},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            req := httptest.NewRequest(http.MethodPost, &quot;/tasks&quot;, strings.NewReader(tt.body))
+            rec := httptest.NewRecorder()
+
+            h.ServeHTTP(rec, req)
+
+            if rec.Code != tt.wantStatus {
+                t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, tt.wantStatus)
+            }
+        })
+    }
+}
+
+func TestGetTask(t *testing.T) {
+    h := newTestHandler()
+
+    createReq := httptest.NewRequest(http.MethodPost, &quot;/tasks&quot;, strings.NewReader(`{&quot;title&quot;:&quot;Write chapter one&quot;}`))
+    createRec := httptest.NewRecorder()
+    h.ServeHTTP(createRec, createReq)
+
+    var created Task
+    if err := json.NewDecoder(createRec.Body).Decode(&amp;created); err != nil {
+        t.Fatalf(&quot;decode created task: %v&quot;, err)
+    }
+    if created.Status != StatusPending {
+        t.Fatalf(&quot;status = %q, want %q&quot;, created.Status, StatusPending)
+    }
+
+    getReq := httptest.NewRequest(http.MethodGet, &quot;/tasks/&quot;+created.ID, nil)
+    getRec := httptest.NewRecorder()
+    h.ServeHTTP(getRec, getReq)
+    if getRec.Code != http.StatusOK {
+        t.Fatalf(&quot;get status = %d, want %d&quot;, getRec.Code, http.StatusOK)
+    }
+
+    missingReq := httptest.NewRequest(http.MethodGet, &quot;/tasks/tsk_nope&quot;, nil)
+    missingRec := httptest.NewRecorder()
+    h.ServeHTTP(missingRec, missingReq)
+    if missingRec.Code != http.StatusNotFound {
+        t.Fatalf(&quot;missing status = %d, want %d&quot;, missingRec.Code, http.StatusNotFound)
+    }
+}
+
+func TestStoreConcurrentCreate(t *testing.T) {
+    store := NewStore()
+
+    var wg sync.WaitGroup
+    for i := 0; i &lt; 50; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            if _, err := store.Create(&quot;task&quot;); err != nil {
+                t.Errorf(&quot;create: %v&quot;, err)
+            }
+        }()
+    }
+    wg.Wait()
+
+    if got := len(store.List()); got != 50 {
+        t.Fatalf(&quot;task count = %d, want 50&quot;, got)
+    }
+}
+</code></pre>
+<p>The first test is <em>table-driven</em>: a list of cases and one loop that runs them. Adding a case costs one line, which is why this is the standard Go style. Chapter 33 develops testing fully.</p>
+<p>The last test uses <code>sync.WaitGroup</code> and <code>go func()</code> to create fifty tasks at once. We use them without full explanation, because the point is the result, and Chapter 23 explains them. Run the suite twice:</p>
+<pre><code>go test ./...
+go test -race ./...
+</code></pre>
+<p>The <code>-race</code> flag turns on the race detector, which watches for unsynchronized access to shared memory. It is the single most valuable testing flag in Go, and it should be part of your habits from the first day.</p>
+<h2 id="what-the-service-still-gets-wrong">What the Service Still Gets Wrong</h2>
+<p>The service works, and it passes its tests. It is also nowhere near production. Compare it honestly to the design from Chapter 3.</p>
+<table>
+<thead>
+<tr>
+<th>Chapter 3 commitment</th>
+<th>Status in this chapter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No task silently lost</td>
+<td><strong>Violated.</strong> Tasks live in memory, so a restart erases everything</td>
+</tr>
+<tr>
+<td>One consistent error format</td>
+<td><strong>Partly met.</strong> Our handlers comply, but the router&rsquo;s own 404 and 405 responses are plain text</td>
+</tr>
+<tr>
+<td>Title rules enforced</td>
+<td>Met</td>
+</tr>
+<tr>
+<td>Status always a valid value</td>
+<td>Documented only; nothing prevents an invalid value</td>
+</tr>
+<tr>
+<td>Allowed transitions enforced</td>
+<td>Not started: no endpoint changes a task&rsquo;s status</td>
+</tr>
+<tr>
+<td>Retried creates do not duplicate</td>
+<td>Open: a repeated <code>POST</code> creates a second task</td>
+</tr>
+<tr>
+<td>Failures bounded and visible</td>
+<td><strong>Weak.</strong> No request logging, no request IDs, no graceful shutdown</td>
+</tr>
+</tbody>
+</table>
+<p>Other gaps are quieter. <code>GET /tasks</code> returns every task, so with a million tasks it returns a million tasks. An oversized body currently produces a 400 about invalid JSON when 413 would be the accurate answer. The server cannot be stopped cleanly: a deploy would cut off requests in flight.</p>
+<p>None of this is a failure of the chapter. It is the point of the chapter. Every row in that table is a future chapter with a concrete reason to exist, and you can now see each one in running code instead of in a bullet list. This is how the book&rsquo;s rhythm works: a simple implementation, the production problem it eventually meets, and then the concept that solves it.</p>
+<h2 id="what-part-i-gave-you">What Part I Gave You</h2>
+<p>Four chapters, and no framework. You now have a way of thinking about a backend as a system that transforms state, a physical map for tracing a request through it, a design written before the code, and a working service whose weaknesses you can name. Part II begins with the first of those weaknesses that every client will notice: HTTP itself. We stop treating it as magic, learn what the protocol actually guarantees, and rebuild these handlers with that understanding.</p>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We turned the Chapter 3 design into a working service with a tested contract, using only the standard library.</p>
+<p><strong>What complexity did we introduce?</strong> A lock, because our handlers run concurrently, and a small amount of Go-specific vocabulary: packages, pointers, errors as values, <code>defer</code>. We introduced no frameworks and no abstractions beyond what the code needed.</p>
+<p><strong>What failure modes appeared?</strong> Data loss on restart, requests cut off on shutdown, unbounded list responses, duplicate creates on retry, and inconsistent errors from the router. All are named in the table above.</p>
+<p><strong>What would break at 10× scale?</strong> The in-memory store would exhaust memory, <code>GET /tasks</code> would become unusably slow, and running a second instance would give each instance its own private, disagreeing set of tasks.</p>
+<p><strong>When should we not build this way?</strong> An in-memory store is only appropriate for a prototype, a test, or a cache. The moment the data matters, it needs durable storage, which is where Part III begins.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Remove the mutex from <code>Store</code> (delete the <code>Lock</code>, <code>RLock</code>, and their <code>defer</code> lines) and run <code>go test -race ./...</code>. Read the race detector&rsquo;s report. Then run the service and hit it with many concurrent <code>POST</code> requests. What happens?</li>
+<li>Add a <code>GET /health</code> endpoint that returns <code>{"status":"ok"}</code>. Where does it belong, and does it need the store?</li>
+<li>Restart the service after creating a few tasks and list them. Which sentence from the Chapter 3 requirements does this violate? Write down what a fix would need to guarantee.</li>
+<li>Send a <code>POST /tasks</code> body with an unknown field, such as <code>{"title":"x","colour":"red"}</code>. What happens? Look up <code>DisallowUnknownFields</code> on the JSON decoder and decide whether strict or lenient is the better contract. What does each choice cost clients that evolve over time?</li>
+<li>Send a body larger than 1 MiB. What status do you get, and what status should the contract promise? Sketch how the handler could tell the two failures apart.</li>
+</ol>
+    <nav class="pager" aria-label="Chapter"><a href="/read/designing-before-coding/">← Chapter 3</a><span></span></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 4: The First Go Service,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/the-first-go-service/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-smallest-possible-server">The Smallest Possible Server</a></li><li><a href="#setting-up-the-project">Setting Up the Project</a></li><li><a href="#the-task">The Task</a></li><li><a href="#the-store">The Store</a></li><li><a href="#the-handlers-and-the-router">The Handlers and the Router</a></li><li><a href="#starting-the-server">Starting the Server</a></li><li><a href="#testing-it">Testing It</a></li><li><a href="#what-the-service-still-gets-wrong">What the Service Still Gets Wrong</a></li><li><a href="#what-part-i-gave-you">What Part I Gave You</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

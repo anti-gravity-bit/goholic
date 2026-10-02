@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Introduction · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/introduction/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Introduction · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.">
+<meta property="og:url" content="https://goholic.in/read/introduction/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Introduction · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1c1915;
+  --paper: #f4efe6;
+  --paper-2: #e9e2d4;
+  --card: #fbf8f2;
+  --moss: #1e4d3a;
+  --moss-deep: #122e24;
+  --copper: #8d452c;
+  --line: #d8d0c2;
+  --mute: #5f584f;
+  --code: #16211c;
+  --code-ink: #e7efe8;
+  --shadow: 0 18px 50px rgba(28, 25, 21, 0.06);
+  --serif: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+  --display: "Fraunces", "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 42rem;
+  --pad: clamp(1.1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f3eee4;
+    --paper: #141816;
+    --paper-2: #1d2420;
+    --card: #1a211d;
+    --moss: #8fbfa4;
+    --moss-deep: #d7efe2;
+    --copper: #e0a48f;
+    --line: #314038;
+    --mute: #b7aea0;
+    --code: #0d1411;
+    --code-ink: #e7efe8;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #f3eee4;
+  --paper: #141816;
+  --paper-2: #1d2420;
+  --card: #1a211d;
+  --moss: #8fbfa4;
+  --moss-deep: #d7efe2;
+  --copper: #e0a48f;
+  --line: #314038;
+  --mute: #b7aea0;
+  --code: #0d1411;
+  --code-ink: #e7efe8;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(141, 69, 44, 0.08), transparent 60%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--moss-deep); text-underline-offset: 0.18em; }
+a:hover { color: var(--copper); }
+img { max-width: 100%; height: auto; }
+.skip {
+  position: absolute; left: 1rem; top: -4rem; background: var(--moss-deep); color: var(--paper);
+  padding: 0.6rem 0.9rem; z-index: 5;
+}
+.skip:focus { top: 0.6rem; }
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--copper); z-index: 6;
+}
+.site-header {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.85rem var(--pad);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.wordmark {
+  font-family: var(--display); font-weight: 560; letter-spacing: -0.03em;
+  text-decoration: none; color: var(--ink); font-size: 1.2rem;
+}
+.wordmark span { color: var(--copper); }
+.nav { display: flex; gap: 0.9rem; align-items: center; font-size: 0.95rem; }
+.nav a { text-decoration: none; }
+.theme-btn, .nav a.button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 0.35rem 0.75rem; font: inherit; cursor: pointer;
+}
+.shell { width: min(1120px, calc(100% - 2 * var(--pad))); margin: 0 auto; }
+.hero { padding: 3.2rem 0 1.5rem; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 2.5rem; align-items: end; }
+.kicker { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper); }
+h1, h2, h3 { font-family: var(--display); font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; }
+.hero h1 { font-size: clamp(3.1rem, 8vw, 6.4rem); margin: 0.2rem 0 0.4rem; }
+.subtitle { font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; }
+.lede { font-size: 1.25rem; color: var(--mute); max-width: 40rem; }
+.cover-card {
+  background: var(--moss-deep); color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
+  min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+.cover-card p { margin: 0.3rem 0; }
+.cover-card a { color: #f0c7b8; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0 0.4rem; }
+.actions a {
+  text-decoration: none; border-radius: 999px; padding: 0.7rem 1rem;
+  border: 1px solid var(--moss-deep);
+}
+.actions a.primary { background: var(--moss-deep); color: #f6f1e7; }
+.actions a.secondary { background: transparent; color: var(--ink); }
+.grid-2 { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; }
+.panel, .chapter-card, .author-card, .faq details {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.15rem;
+}
+.chapter-list { display: grid; gap: 0.8rem; }
+.chapter-card { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.8rem; text-decoration: none; color: inherit; }
+.chapter-card:hover { border-color: var(--copper); }
+.chapter-card strong { display: block; font-family: var(--display); font-size: 1.25rem; font-weight: 560; }
+.meta { color: var(--mute); font-size: 0.92rem; }
+.principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.7rem; margin: 1rem 0 2rem; }
+.principles div { border-top: 2px solid var(--copper); padding-top: 0.6rem; }
+.principles strong { display: block; font-family: var(--display); }
+.read-layout { display: grid; grid-template-columns: minmax(0, var(--measure)) 16rem; gap: 2.2rem; padding: 1.6rem 0 4rem; }
+article h2 { font-size: 1.7rem; margin-top: 2.1rem; }
+article h3 { font-size: 1.3rem; margin-top: 1.6rem; }
+article p, article li { max-width: var(--measure); }
+article table { width: 100%; border-collapse: collapse; font-size: 0.98rem; margin: 1rem 0 1.4rem; display: block; overflow-x: auto; }
+article th, article td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.55rem 0.7rem; vertical-align: top; }
+article th { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+blockquote {
+  margin: 1.4rem 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 3px solid var(--copper); color: var(--ink);
+}
+pre {
+  background: var(--code); color: var(--code-ink); padding: 1rem 1.05rem; border-radius: 12px;
+  overflow-x: auto; font-family: var(--mono); font-size: 0.86rem; line-height: 1.55;
+}
+code { font-family: var(--mono); font-size: 0.88em; }
+p code, li code, td code { background: var(--paper-2); padding: 0.05em 0.35em; border-radius: 5px; }
+.toc { position: sticky; top: 4.5rem; font-size: 0.92rem; }
+.toc ol { padding-left: 1.1rem; margin: 0.4rem 0 0; }
+.toc a { text-decoration: none; }
+.pager {
+  display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.4rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.pager a { text-decoration: none; max-width: 46%; }
+.cite, .author-strip { color: var(--mute); font-size: 0.95rem; }
+.site-footer { border-top: 1px solid var(--line); padding: 1.4rem var(--pad) 2.4rem; color: var(--mute); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.faq details { margin-bottom: 0.6rem; }
+.faq summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; }
+@media (max-width: 860px) {
+  .hero, .grid-2, .read-layout, .principles { grid-template-columns: 1fr; }
+  .chapter-card { grid-template-columns: 1fr; }
+  .toc { position: static; }
+  .nav span.hide-sm { display: none; }
+}
+@media print {
+  .site-header, .progress, .toc, .theme-btn, .pager, .site-footer { display: none; }
+  body { background: white; color: black; }
+  pre { white-space: pre-wrap; }
+}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Introduction", "headline": "Introduction", "url": "https://goholic.in/read/introduction/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-03", "inLanguage": "en", "description": "Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.", "position": 1, "wordCount": 875, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Introduction", "item": "https://goholic.in/read/introduction/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Before the work · Introduction</p>
+    <h1>Introduction</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 4 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <h2 id="the-easy-part-is-easy">The Easy Part Is Easy</h2>
+<p>Go makes starting feel almost suspiciously simple. A working web server fits in a handful of lines, compiles in a second, and ships as a single binary. For a few hours, it feels like backend engineering has been solved.</p>
+<p>Then the service meets reality. A client retries a request that already succeeded. Two users change the same record at the same moment. The database slows down, and every request waiting on it slows down too. A deploy kills a request halfway through a write. At 3 AM, someone asks what happened, and the only evidence is a line of text that says <code>something failed</code>.</p>
+<p>None of these problems are Go problems. They are backend problems, and they arrive in every language. Go simply gets you to them faster, which is a gift if you are prepared and a shock if you are not. This book is about being prepared.</p>
+<h2 id="why-ldquo-defer-nothing-rdquo">Why &ldquo;Defer Nothing&rdquo;</h2>
+<p>In Go, the <code>defer</code> statement schedules a call to run when the surrounding function returns. It is one of the language&rsquo;s best ideas: you open a file, and on the very next line you state when it will be closed. The cleanup is decided at the moment the resource is acquired, not left to memory and good intentions.</p>
+<p>Backend engineering has the opposite temptation. We defer the hard parts. We will handle errors later. We will add timeouts later. We will think about two requests at once later. We will make it observable later. Later usually arrives as an outage.</p>
+<p>The title is a working philosophy: decide how it fails when you decide how it works. Handle the error now. Bound the work now. Make the behavior visible now. Every chapter ahead returns to this habit.</p>
+<h2 id="what-this-book-is">What This Book Is</h2>
+<p>This is a practical book about designing, building, testing, deploying, and operating production backend services in Go. It is not a Go language reference, and Go syntax appears only when the system you are building needs it.</p>
+<p>It is built around one idea: <strong>start with a request, follow it all the way to a production service, and learn the engineering decisions in between.</strong></p>
+<p>A backend is not an HTTP handler. It is a system that accepts requests, changes state, talks to other systems, fails under imperfect conditions, and must stay understandable while doing all of that. Handlers are the visible tip of it.</p>
+<h2 id="five-principles">Five Principles</h2>
+<p>Five principles run through every part of the book.</p>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>What it means in practice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Make it work</td>
+<td>Start simple. A working system teaches more than a perfect design on paper.</td>
+</tr>
+<tr>
+<td>Make the boundaries explicit</td>
+<td>Know where one responsibility ends and another begins: handler, service, database, network.</td>
+</tr>
+<tr>
+<td>Make failure ordinary</td>
+<td>Treat errors, timeouts, and partial failures as normal inputs, not exceptions to the plan.</td>
+</tr>
+<tr>
+<td>Make concurrency deliberate</td>
+<td>Every goroutine has an owner, a lifetime, and a reason to exist.</td>
+</tr>
+<tr>
+<td>Make production behavior observable</td>
+<td>If you cannot see what the system is doing, you do not control it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-running-project-forge">The Running Project: Forge</h2>
+<p>Instead of unrelated toy examples, you will build one system throughout the book: <strong>Forge</strong>, a task and work management API.</p>
+<p>Forge begins small. In Part I it has three endpoints, <code>POST /tasks</code>, <code>GET /tasks</code>, and <code>GET /tasks/:id</code>, and nothing else. By the final chapters it has authentication, PostgreSQL, caching, background workers, event streaming, metrics, tracing, a container image, and a deployment pipeline. Each addition arrives at the moment the system genuinely needs it, so you always know why a technique exists before you learn how it works.</p>
+<h2 id="how-each-chapter-works">How Each Chapter Works</h2>
+<p>Most chapters follow the same rhythm: a concrete problem, the simplest implementation that solves it, the failure that implementation eventually meets, the concept that addresses the failure, a refactor, tests, and an honest look at the trade-offs. Concepts are never introduced as abstractions looking for a problem. The problem always comes first.</p>
+<p>Two recurring features reinforce this.</p>
+<p><strong>Engineering Lens.</strong> Each chapter closes with five questions: what problem did we solve, what complexity did we introduce, what failure modes appeared, what would break at 10× scale, and when should we not use this technique. The last question matters most. A technique you cannot argue against is a technique you do not yet understand.</p>
+<p><strong>Before and After.</strong> Major chapters end with a problematic implementation next to a production-oriented one, followed by what the change gained and what it cost. The goal is judgment, not syntax.</p>
+<h2 id="who-this-book-is-for">Who This Book Is For</h2>
+<p>You should be comfortable with basic programming: variables, functions, control flow, and reading someone else&rsquo;s code. You do not need prior Go experience, though developers coming from Python, Node, Java, or PHP will find the Go-specific material paced for them. Junior and mid-level backend engineers will find a systematic path from first service to production. Experienced developers can use the book as a structured refresher and a source of checklists.</p>
+<h2 id="a-final-note-before-we-begin">A Final Note Before We Begin</h2>
+<p>Near the end of the book you will meet one question that the whole text is designed to prepare you for:</p>
+<blockquote>
+<p>If this service breaks at 3 AM, can another engineer understand what happened?</p>
+</blockquote>
+<p>Keep it in mind as you read. It is a better measure of a backend than any benchmark.</p>
+<hr>
+    <nav class="pager" aria-label="Chapter"><span></span><a href="/read/what-is-a-backend/">Chapter 1 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Introduction,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/introduction/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-easy-part-is-easy">The Easy Part Is Easy</a></li><li><a href="#why-ldquo-defer-nothing-rdquo">Why &amp;ldquo;Defer Nothing&amp;rdquo;</a></li><li><a href="#what-this-book-is">What This Book Is</a></li><li><a href="#five-principles">Five Principles</a></li><li><a href="#the-running-project-forge">The Running Project: Forge</a></li><li><a href="#how-each-chapter-works">How Each Chapter Works</a></li><li><a href="#who-this-book-is-for">Who This Book Is For</a></li><li><a href="#a-final-note-before-we-begin">A Final Note Before We Begin</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

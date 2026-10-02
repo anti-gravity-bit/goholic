@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 3: Designing Before Coding · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="The decisions that are expensive to reverse: Forge&#x27;s requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/designing-before-coding/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 3: Designing Before Coding · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="The decisions that are expensive to reverse: Forge&#x27;s requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.">
+<meta property="og:url" content="https://goholic.in/read/designing-before-coding/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 3: Designing Before Coding · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="The decisions that are expensive to reverse: Forge&#x27;s requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1c1915;
+  --paper: #f4efe6;
+  --paper-2: #e9e2d4;
+  --card: #fbf8f2;
+  --moss: #1e4d3a;
+  --moss-deep: #122e24;
+  --copper: #8d452c;
+  --line: #d8d0c2;
+  --mute: #5f584f;
+  --code: #16211c;
+  --code-ink: #e7efe8;
+  --shadow: 0 18px 50px rgba(28, 25, 21, 0.06);
+  --serif: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+  --display: "Fraunces", "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --measure: 42rem;
+  --pad: clamp(1.1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #f3eee4;
+    --paper: #141816;
+    --paper-2: #1d2420;
+    --card: #1a211d;
+    --moss: #8fbfa4;
+    --moss-deep: #d7efe2;
+    --copper: #e0a48f;
+    --line: #314038;
+    --mute: #b7aea0;
+    --code: #0d1411;
+    --code-ink: #e7efe8;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #f3eee4;
+  --paper: #141816;
+  --paper-2: #1d2420;
+  --card: #1a211d;
+  --moss: #8fbfa4;
+  --moss-deep: #d7efe2;
+  --copper: #e0a48f;
+  --line: #314038;
+  --mute: #b7aea0;
+  --code: #0d1411;
+  --code-ink: #e7efe8;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(141, 69, 44, 0.08), transparent 60%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--moss-deep); text-underline-offset: 0.18em; }
+a:hover { color: var(--copper); }
+img { max-width: 100%; height: auto; }
+.skip {
+  position: absolute; left: 1rem; top: -4rem; background: var(--moss-deep); color: var(--paper);
+  padding: 0.6rem 0.9rem; z-index: 5;
+}
+.skip:focus { top: 0.6rem; }
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--copper); z-index: 6;
+}
+.site-header {
+  position: sticky; top: 0; z-index: 4;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.85rem var(--pad);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.wordmark {
+  font-family: var(--display); font-weight: 560; letter-spacing: -0.03em;
+  text-decoration: none; color: var(--ink); font-size: 1.2rem;
+}
+.wordmark span { color: var(--copper); }
+.nav { display: flex; gap: 0.9rem; align-items: center; font-size: 0.95rem; }
+.nav a { text-decoration: none; }
+.theme-btn, .nav a.button {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 999px; padding: 0.35rem 0.75rem; font: inherit; cursor: pointer;
+}
+.shell { width: min(1120px, calc(100% - 2 * var(--pad))); margin: 0 auto; }
+.hero { padding: 3.2rem 0 1.5rem; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 2.5rem; align-items: end; }
+.kicker { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper); }
+h1, h2, h3 { font-family: var(--display); font-weight: 560; letter-spacing: -0.03em; line-height: 1.15; }
+.hero h1 { font-size: clamp(3.1rem, 8vw, 6.4rem); margin: 0.2rem 0 0.4rem; }
+.subtitle { font-size: clamp(1.3rem, 2.4vw, 1.8rem); margin: 0; }
+.lede { font-size: 1.25rem; color: var(--mute); max-width: 40rem; }
+.cover-card {
+  background: var(--moss-deep); color: #f6f1e7; border-radius: 18px; padding: 1.4rem 1.3rem 1.2rem;
+  min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: var(--shadow);
+}
+.cover-card p { margin: 0.3rem 0; }
+.cover-card a { color: #f0c7b8; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin: 1.4rem 0 0.4rem; }
+.actions a {
+  text-decoration: none; border-radius: 999px; padding: 0.7rem 1rem;
+  border: 1px solid var(--moss-deep);
+}
+.actions a.primary { background: var(--moss-deep); color: #f6f1e7; }
+.actions a.secondary { background: transparent; color: var(--ink); }
+.grid-2 { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 1.5rem; }
+.panel, .chapter-card, .author-card, .faq details {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.15rem;
+}
+.chapter-list { display: grid; gap: 0.8rem; }
+.chapter-card { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.8rem; text-decoration: none; color: inherit; }
+.chapter-card:hover { border-color: var(--copper); }
+.chapter-card strong { display: block; font-family: var(--display); font-size: 1.25rem; font-weight: 560; }
+.meta { color: var(--mute); font-size: 0.92rem; }
+.principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.7rem; margin: 1rem 0 2rem; }
+.principles div { border-top: 2px solid var(--copper); padding-top: 0.6rem; }
+.principles strong { display: block; font-family: var(--display); }
+.read-layout { display: grid; grid-template-columns: minmax(0, var(--measure)) 16rem; gap: 2.2rem; padding: 1.6rem 0 4rem; }
+article h2 { font-size: 1.7rem; margin-top: 2.1rem; }
+article h3 { font-size: 1.3rem; margin-top: 1.6rem; }
+article p, article li { max-width: var(--measure); }
+article table { width: 100%; border-collapse: collapse; font-size: 0.98rem; margin: 1rem 0 1.4rem; display: block; overflow-x: auto; }
+article th, article td { border-bottom: 1px solid var(--line); text-align: left; padding: 0.55rem 0.7rem; vertical-align: top; }
+article th { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+blockquote {
+  margin: 1.4rem 0; padding: 0.2rem 0 0.2rem 1rem; border-left: 3px solid var(--copper); color: var(--ink);
+}
+pre {
+  background: var(--code); color: var(--code-ink); padding: 1rem 1.05rem; border-radius: 12px;
+  overflow-x: auto; font-family: var(--mono); font-size: 0.86rem; line-height: 1.55;
+}
+code { font-family: var(--mono); font-size: 0.88em; }
+p code, li code, td code { background: var(--paper-2); padding: 0.05em 0.35em; border-radius: 5px; }
+.toc { position: sticky; top: 4.5rem; font-size: 0.92rem; }
+.toc ol { padding-left: 1.1rem; margin: 0.4rem 0 0; }
+.toc a { text-decoration: none; }
+.pager {
+  display: flex; justify-content: space-between; gap: 1rem; margin-top: 2.4rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.pager a { text-decoration: none; max-width: 46%; }
+.cite, .author-strip { color: var(--mute); font-size: 0.95rem; }
+.site-footer { border-top: 1px solid var(--line); padding: 1.4rem var(--pad) 2.4rem; color: var(--mute); display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.faq details { margin-bottom: 0.6rem; }
+.faq summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; }
+@media (max-width: 860px) {
+  .hero, .grid-2, .read-layout, .principles { grid-template-columns: 1fr; }
+  .chapter-card { grid-template-columns: 1fr; }
+  .toc { position: static; }
+  .nav span.hide-sm { display: none; }
+}
+@media print {
+  .site-header, .progress, .toc, .theme-btn, .pager, .site-footer { display: none; }
+  body { background: white; color: black; }
+  pre { white-space: pre-wrap; }
+}
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 3: Designing Before Coding", "headline": "Chapter 3: Designing Before Coding", "url": "https://goholic.in/read/designing-before-coding/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-03", "inLanguage": "en", "description": "The decisions that are expensive to reverse: Forge's requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.", "position": 4, "wordCount": 1936, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 3: Designing Before Coding", "item": "https://goholic.in/read/designing-before-coding/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part I · Thinking in Backends · Chapter 3</p>
+    <h1>Chapter 3: Designing Before Coding</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 8 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>The expensive bugs in a backend are rarely typos. They are correct implementations of unclear decisions. The code does exactly what it was written to do, and what it was written to do was never properly thought through.</p>
+<p>Consider a pattern that appears in many young systems. A task has a status, and someone adds it as a free-form string because that is the quickest option. Over the following months, different parts of the system write <code>done</code>, <code>completed</code>, <code>finished</code>, and <code>complete</code>. No single change was wrong. The system just never decided what the legal states were, so every developer decided independently. Cleaning it up later means a data migration, a compatibility period, and an apology to everyone who built on the old values.</p>
+<p>This chapter is about preventing that, by deciding the important things before writing code. It is not about producing long documents.</p>
+<h2 id="the-right-size-of-design">The Right Size of Design</h2>
+<p>Design before coding does not mean designing everything. It means making the decisions that are expensive to change, and recording them in a form small enough that people actually read it.</p>
+<p>There is an apparent tension with this book&rsquo;s title, since &ldquo;defer nothing&rdquo; could be read as &ldquo;decide everything now.&rdquo; It means something narrower: decide <em>how things fail and what must always be true</em> now, and leave cheap decisions, such as file layout and internal naming, for when you have more information.</p>
+<p>For Forge&rsquo;s first slice, the design is six short artifacts. Each answers one question.</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>The question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Requirements</td>
+<td>What must the system do, and what is out of scope?</td>
+</tr>
+<tr>
+<td>Entities</td>
+<td>What things does the system keep track of?</td>
+</tr>
+<tr>
+<td>Invariants</td>
+<td>What must always be true?</td>
+</tr>
+<tr>
+<td>State transitions</td>
+<td>How is a thing allowed to change?</td>
+</tr>
+<tr>
+<td>API contracts</td>
+<td>What exactly do clients send and receive?</td>
+</tr>
+<tr>
+<td>Failure modes</td>
+<td>What happens when something goes wrong?</td>
+</tr>
+</tbody>
+</table>
+<h2 id="requirements-including-what-we-will-not-build">Requirements: Including What We Will Not Build</h2>
+<p>Write requirements as short statements, and write the exclusions with equal care. An explicit &ldquo;not now&rdquo; prevents arguments later.</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Functional</td>
+<td>A client can create a task with a title</td>
+</tr>
+<tr>
+<td>Functional</td>
+<td>A client can retrieve one task by ID</td>
+</tr>
+<tr>
+<td>Functional</td>
+<td>A client can list tasks</td>
+</tr>
+<tr>
+<td>Functional</td>
+<td>A task moves through a defined lifecycle</td>
+</tr>
+<tr>
+<td>Non-functional</td>
+<td>Each endpoint responds within a reasonable time under normal load</td>
+</tr>
+<tr>
+<td>Non-functional</td>
+<td>No task is silently lost or duplicated by a successful response</td>
+</tr>
+<tr>
+<td>Non-functional</td>
+<td>Every failure produces a clear, consistent error response</td>
+</tr>
+<tr>
+<td>Out of scope for now</td>
+<td>Users and authentication (Chapter 9), pagination (Chapter 10), background execution (Chapter 25)</td>
+</tr>
+</tbody>
+</table>
+<p>The non-functional rows matter most and are the ones most often omitted. &ldquo;No task is silently lost&rdquo; is a requirement that will later force decisions about transactions and storage. Writing it now means we notice when a design violates it.</p>
+<h2 id="entities-what-the-system-remembers">Entities: What the System Remembers</h2>
+<p>Forge begins with one entity, the <strong>Task</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Unique identifier, opaque to clients</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>Short human-readable description</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>Current lifecycle state</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>When the task was created</td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td>When the task last changed</td>
+</tr>
+</tbody>
+</table>
+<p>One decision hides in this table: the ID is <em>opaque</em>. Clients treat it as a label, never as a number to increment or guess. That freedom lets us change how IDs are generated later without breaking anyone, and it avoids exposing how many tasks exist. A decision that costs nothing now would be painful to reverse once clients depend on the opposite.</p>
+<p>Later chapters add users and task events. We design them when we need them.</p>
+<h2 id="invariants-what-must-always-be-true">Invariants: What Must Always Be True</h2>
+<p>An invariant is a statement that holds at every moment, regardless of which request, worker, or script touched the data. Writing them down is the most valuable design step, because they become the checklist against which every later piece of code is judged.</p>
+<table>
+<thead>
+<tr>
+<th>Invariant</th>
+<th>Where it will eventually be enforced</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A title is non-empty and at most 200 characters</td>
+<td>Validation, and a database constraint as a backstop</td>
+</tr>
+<tr>
+<td>Status is always one of the defined states</td>
+<td>Domain model and database constraint</td>
+</tr>
+<tr>
+<td>A completed or cancelled task never changes again</td>
+<td>Domain model</td>
+</tr>
+<tr>
+<td>Status changes only along allowed transitions</td>
+<td>Domain model, and conditional writes in storage</td>
+</tr>
+<tr>
+<td><code>updated_at</code> is never earlier than <code>created_at</code></td>
+<td>Storage layer</td>
+</tr>
+</tbody>
+</table>
+<p>The right-hand column shows a pattern worth noticing. Important invariants are enforced in more than one place, because any single layer can be bypassed by a bug, a script, or a future developer. Defense in depth is cheap for the invariants that matter and wasteful for the ones that do not, so choose deliberately.</p>
+<h2 id="state-transitions-the-lifecycle">State Transitions: The Lifecycle</h2>
+<p>Chapter 1 showed a first sketch. Now we make the decisions that sketch left open. Forge tasks have five states:</p>
+<pre><code>            ┌──────────► cancelled
+            │
+pending ────┼──► running ──┬──► completed
+            │              │
+            │              └──► failed
+            │                     │
+            └◄────────────────────┘
+                   (retry)
+</code></pre>
+<p>Each arrow is a decision, and the table records it.</p>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>To</th>
+<th>Allowed</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pending</td>
+<td>running</td>
+<td>Yes</td>
+<td>Work begins</td>
+</tr>
+<tr>
+<td>pending</td>
+<td>cancelled</td>
+<td>Yes</td>
+<td>Caller abandons it before it starts</td>
+</tr>
+<tr>
+<td>running</td>
+<td>completed</td>
+<td>Yes</td>
+<td>Terminal</td>
+</tr>
+<tr>
+<td>running</td>
+<td>failed</td>
+<td>Yes</td>
+<td>Work did not succeed</td>
+</tr>
+<tr>
+<td>running</td>
+<td>cancelled</td>
+<td>Yes</td>
+<td>Abandoned mid-flight</td>
+</tr>
+<tr>
+<td>failed</td>
+<td>pending</td>
+<td>Yes</td>
+<td>Retry: re-queues the task</td>
+</tr>
+<tr>
+<td>pending</td>
+<td>completed</td>
+<td>No</td>
+<td>A task cannot finish without running</td>
+</tr>
+<tr>
+<td>completed</td>
+<td>anything</td>
+<td>No</td>
+<td>Terminal states are final</td>
+</tr>
+<tr>
+<td>cancelled</td>
+<td>anything</td>
+<td>No</td>
+<td>Terminal states are final</td>
+</tr>
+</tbody>
+</table>
+<p>Two choices deserve a defence. First, <code>failed</code> is <em>not</em> terminal, because retrying failed work is a normal operation, and modelling it as a transition back to <code>pending</code> keeps the lifecycle a single clean loop. Second, <code>completed</code> <em>is</em> terminal. If someone later needs to reopen finished work, that is a new feature with its own rules, not a loophole.</p>
+<p>Three questions, asked about any lifecycle, will find most design flaws. They are the questions that turn a diagram into a design.</p>
+<blockquote>
+<p>What states are legal? What transitions are legal? What happens if two requests attempt the same transition at once?</p>
+</blockquote>
+<p>The first two are answered above. The third is the one that separates a sketch from a system.</p>
+<h2 id="when-two-requests-collide">When Two Requests Collide</h2>
+<p>Suppose two clients both ask to start the same <code>pending</code> task at the same moment. Each reads <code>pending</code>, each is permitted to proceed, and each issues the change. If nothing prevents it, both succeed, and the task starts twice.</p>
+<p>There are only a few ways to respond, and choosing among them is a design decision, not an implementation detail.</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Behavior</th>
+<th>Verdict for starting a task</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Last write wins</td>
+<td>The second change silently overwrites the first</td>
+<td>Unacceptable: the first caller is misled</td>
+</tr>
+<tr>
+<td>Reject the loser</td>
+<td>The second request fails with a conflict</td>
+<td>Correct: exactly one caller wins, the other is told</td>
+</tr>
+<tr>
+<td>Queue and retry</td>
+<td>The second waits, then re-checks</td>
+<td>Sometimes right, but adds complexity</td>
+</tr>
+</tbody>
+</table>
+<p>For Forge, we choose to <strong>reject the loser</strong>. A transition is only valid if the task is still in the state the caller expected. The loser receives a conflict response and can re-read the task to see what happened. Chapter 13 shows the mechanism, a write that is conditional on the current state. The point here is that the <em>behavior</em> was decided before the code, so the code has a target.</p>
+<h2 id="api-contracts-the-promise-to-clients">API Contracts: The Promise to Clients</h2>
+<p>The API is a contract. Once clients depend on it, changing it is expensive, so it deserves precision before implementation.</p>
+<table>
+<thead>
+<tr>
+<th>Method and path</th>
+<th>Purpose</th>
+<th>Success</th>
+<th>Common errors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /tasks</code></td>
+<td>Create a task</td>
+<td>201 with the task</td>
+<td>400 invalid input</td>
+</tr>
+<tr>
+<td><code>GET /tasks/{id}</code></td>
+<td>Fetch one task</td>
+<td>200 with the task</td>
+<td>404 not found</td>
+</tr>
+<tr>
+<td><code>GET /tasks</code></td>
+<td>List tasks</td>
+<td>200 with a list</td>
+<td>none expected</td>
+</tr>
+</tbody>
+</table>
+<p>A created task looks like this:</p>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;tsk_8f3a1c&quot;,
+  &quot;title&quot;: &quot;Write chapter one&quot;,
+  &quot;status&quot;: &quot;pending&quot;,
+  &quot;created_at&quot;: &quot;2026-10-03T09:14:00Z&quot;,
+  &quot;updated_at&quot;: &quot;2026-10-03T09:14:00Z&quot;
+}
+</code></pre>
+<p>Every error uses one consistent shape, so clients write one error handler:</p>
+<pre><code class="language-json">{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;INVALID_ARGUMENT&quot;,
+    &quot;message&quot;: &quot;title is required&quot;
+  }
+}
+</code></pre>
+<p>Notice what the contract fixes: field names, the <code>pending</code> initial status, timestamp format, and the error structure. It deliberately leaves out how tasks are stored and how IDs are generated. A good contract promises behavior and hides mechanism.</p>
+<h2 id="failure-modes-deciding-before-it-happens">Failure Modes: Deciding Before It Happens</h2>
+<p>For every endpoint, ask what happens when each thing goes wrong, and write down the intended behavior. Doing this before coding means failure handling is designed instead of accidental.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Intended behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Body is not valid JSON</td>
+<td>400 with <code>INVALID_ARGUMENT</code></td>
+</tr>
+<tr>
+<td>Title is missing or too long</td>
+<td>400 with a message naming the field</td>
+</tr>
+<tr>
+<td>Task ID does not exist</td>
+<td>404 with <code>NOT_FOUND</code></td>
+</tr>
+<tr>
+<td>Transition is not allowed</td>
+<td>409 with a code naming the conflict</td>
+</tr>
+<tr>
+<td>Database is unavailable</td>
+<td>503, with nothing partially written</td>
+</tr>
+<tr>
+<td>Client disconnects mid-request</td>
+<td>Stop work; do not leave half-finished state</td>
+</tr>
+<tr>
+<td>Client retries a create after a timeout</td>
+<td>Open question, see below</td>
+</tr>
+</tbody>
+</table>
+<h2 id="open-questions-belong-in-the-design">Open Questions Belong in the Design</h2>
+<p>A design should record what it has <em>not</em> solved. The last row above is a real problem: if a client times out and retries <code>POST /tasks</code>, the first request may have succeeded, and now there are two identical tasks. Forge&rsquo;s first version does not prevent this. Writing the question down makes the gap visible, so we solve it deliberately in Chapter 10 with idempotency, rather than discovering it in production.</p>
+<h2 id="the-one-page-design">The One-Page Design</h2>
+<p>All of this fits on a single page. For any new feature, a page with these headings is enough:</p>
+<pre><code>Goal            One sentence on what this enables
+Requirements    Functional, non-functional, out of scope
+Entities        What is stored, and the decisions hidden in the fields
+Invariants      What must always be true, and where it is enforced
+Transitions     States, allowed moves, and the collision policy
+Contract        Endpoints, shapes, status codes, error format
+Failure modes   Each failure and the intended behavior
+Open questions  What we know we have not solved
+</code></pre>
+<p>If a design takes more than a page for a feature this size, it is probably trying to decide things that are cheap to decide later.</p>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We made the decisions that are expensive to reverse, the lifecycle, the invariants, the contract, and the collision policy, before they could be made accidentally in code.</p>
+<p><strong>What complexity did we introduce?</strong> A small amount of up-front writing and the discipline to keep it current. A design that drifts from the code is worse than none.</p>
+<p><strong>What failure modes appeared?</strong> Unclear states, silent overwrites under concurrency, duplicate creates from retries, and half-written state when dependencies fail. Each is now a named item with intended behavior or an open question.</p>
+<p><strong>What would break at 10× scale?</strong> Collisions that were theoretical become constant, so the reject-the-loser policy will be exercised thousands of times a day. A lifecycle with unclear rules would be producing corrupt data at the same rate.</p>
+<p><strong>When should we not design this much?</strong> For a prototype you will throw away, or a change small enough to understand in one sitting, a full page is excessive. Scale the design to the cost of being wrong.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Add a <code>blocked</code> state to the Forge lifecycle, for tasks waiting on something external. Update the transition table. Which existing decisions does it force you to revisit?</li>
+<li>Write the one-page design for a new feature: assigning a task to a user. What are the invariants? What collision policy applies when two people assign the same task at once?</li>
+<li>Pick a real API you use and find one place where its contract leaks implementation detail. What would the cost be of fixing it now?</li>
+<li>Choose one open question from this chapter and propose two possible answers. What would each cost, and what would each protect against?</li>
+</ol>
+<p>With the design settled, Chapter 4 finally opens an editor. We write the first Forge service in Go, teaching only the language features the system needs, and discover quickly which of today&rsquo;s decisions the code makes easy and which it makes hard.</p>
+    <nav class="pager" aria-label="Chapter"><a href="/read/from-request-to-response/">← Chapter 2</a><a href="/read/the-first-go-service/">Chapter 4 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 3: Designing Before Coding,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/designing-before-coding/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-right-size-of-design">The Right Size of Design</a></li><li><a href="#requirements-including-what-we-will-not-build">Requirements: Including What We Will Not Build</a></li><li><a href="#entities-what-the-system-remembers">Entities: What the System Remembers</a></li><li><a href="#invariants-what-must-always-be-true">Invariants: What Must Always Be True</a></li><li><a href="#state-transitions-the-lifecycle">State Transitions: The Lifecycle</a></li><li><a href="#when-two-requests-collide">When Two Requests Collide</a></li><li><a href="#api-contracts-the-promise-to-clients">API Contracts: The Promise to Clients</a></li><li><a href="#failure-modes-deciding-before-it-happens">Failure Modes: Deciding Before It Happens</a></li><li><a href="#open-questions-belong-in-the-design">Open Questions Belong in the Design</a></li><li><a href="#the-one-page-design">The One-Page Design</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

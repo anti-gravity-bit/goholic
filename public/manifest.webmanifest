@@ -1,0 +1,10 @@
+{
+  "name": "Defer Nothing",
+  "short_name": "Defer Nothing",
+  "description": "Building Backend Systems in Go, by Abir Sarkar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4efe6",
+  "theme_color": "#122e24",
+  "lang": "en"
+}
