@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chapter 7: Routing and Middleware · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="Request IDs, access logs, panic recovery, and JSON for the router&#x27;s own 404 and 405. The order of the stack decides which layer can see a failure.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/routing-and-middleware/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 7: Routing and Middleware · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="Request IDs, access logs, panic recovery, and JSON for the router&#x27;s own 404 and 405. The order of the stack decides which layer can see a failure.">
+<meta property="og:url" content="https://goholic.in/read/routing-and-middleware/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 7: Routing and Middleware · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="Request IDs, access logs, panic recovery, and JSON for the router&#x27;s own 404 and 405. The order of the stack decides which layer can see a failure.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 7: Routing and Middleware", "headline": "Chapter 7: Routing and Middleware", "url": "https://goholic.in/read/routing-and-middleware/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-04", "inLanguage": "en", "description": "Request IDs, access logs, panic recovery, and JSON for the router's own 404 and 405. The order of the stack decides which layer can see a failure.", "position": 8, "wordCount": 3342, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 7: Routing and Middleware", "item": "https://goholic.in/read/routing-and-middleware/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part II · HTTP and API Engineering · Chapter 7</p>
+    <h1>Chapter 7: Routing and Middleware</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 15 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Forge now has four endpoints, and each one is a clean handler that decodes, validates, calls, and responds. They share a flaw that has nothing to do with any of them. Nobody is watching the front door.</p>
+<p>If a handler panics, what does the client see? If two requests fail at the same moment, which log line belongs to which? When a customer reports &ldquo;my request failed at 9:14,&rdquo; how do you find it? These questions concern every endpoint equally, and the answers belong in one place rather than being repeated in every handler. That place is middleware.</p>
+<h2 id="the-problem-made-visible">The Problem, Made Visible</h2>
+<p>Add a deliberately broken endpoint to <code>routes()</code> for a moment:</p>
+<pre><code class="language-go">mux.HandleFunc(&quot;GET /boom&quot;, func(w http.ResponseWriter, r *http.Request) {
+    var tasks map[string]Task
+    tasks[&quot;x&quot;] = Task{} // writing to a nil map panics
+})
+</code></pre>
+<p>Request it:</p>
+<pre><code>$ curl -i localhost:8080/boom
+curl: (52) Empty reply from server
+</code></pre>
+<p>Go&rsquo;s HTTP server recovers from handler panics so one bad request does not crash the process, but its recovery is blunt. It logs a stack trace to standard error in plain text and closes the connection. The client receives no status code, no JSON, and no explanation, only a dropped connection that looks exactly like a network failure. Our error contract from Chapter 3 promised that every failure produces a clear, consistent response. A panic quietly breaks that promise.</p>
+<p>Three more gaps are in the same category.</p>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Symptom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No request identity</td>
+<td>Log lines from concurrent requests interleave with nothing connecting them</td>
+</tr>
+<tr>
+<td>No access log</td>
+<td>Nothing records which requests arrived, how they ended, or how long they took</td>
+</tr>
+<tr>
+<td>Router errors are plain text</td>
+<td>A 404 or 405 from the router ignores our error format entirely</td>
+</tr>
+</tbody>
+</table>
+<p>Remove the <code>/boom</code> route before continuing. We will bring it back as a test.</p>
+<h2 id="routing-in-depth">Routing in Depth</h2>
+<p>Before wrapping the router, understand what it does. Go&rsquo;s <code>ServeMux</code> matches a request to a handler using patterns, and since Go 1.22 a pattern can include a method and wildcards.</p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Matches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /tasks</code></td>
+<td>Exactly <code>GET /tasks</code> (and <code>HEAD /tasks</code>)</td>
+</tr>
+<tr>
+<td><code>GET /tasks/{id}</code></td>
+<td>One path segment after <code>/tasks/</code>, captured as <code>id</code></td>
+</tr>
+<tr>
+<td><code>POST /tasks/{id}/transition</code></td>
+<td>A nested path with a captured segment in the middle</td>
+</tr>
+<tr>
+<td><code>/static/</code></td>
+<td>Everything beginning with <code>/static/</code> (a subtree)</td>
+</tr>
+<tr>
+<td><code>/files/{path...}</code></td>
+<td>The remainder of the path, however many segments</td>
+</tr>
+<tr>
+<td><code>/{$}</code></td>
+<td>Exactly the root path and nothing else</td>
+</tr>
+</tbody>
+</table>
+<p>When two patterns could match the same request, the <em>more specific</em> one wins, so <code>GET /tasks/{id}</code> takes precedence over a broad <code>/tasks/</code>. When two patterns conflict in a way the router cannot resolve, registration <strong>panics at startup</strong>. This is a gift. A routing ambiguity is discovered the first time you run the program, not after a deploy, which is the book&rsquo;s philosophy implemented by the standard library.</p>
+<p>Forge&rsquo;s route tree grows as the chapters advance. Today it is small:</p>
+<pre><code>/
+├── /health           GET
+└── /tasks
+    ├── GET, POST
+    └── /{id}
+        ├── GET
+        └── /transition   POST
+</code></pre>
+<p>Chapter 9 adds <code>/auth</code> and <code>/users</code> branches. We add the first new route now, a health check that load balancers and orchestrators use to ask whether the process is alive:</p>
+<pre><code class="language-go">func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+    writeJSON(w, http.StatusOK, map[string]string{&quot;status&quot;: &quot;ok&quot;})
+}
+</code></pre>
+<p>It deliberately touches nothing else. A liveness check that queries the database would report the <em>process</em> as dead whenever the database is slow, which is the wrong signal. Chapter 30 separates liveness from readiness properly.</p>
+<h2 id="what-middleware-is">What Middleware Is</h2>
+<p>A middleware is a function that takes a handler and returns a new handler that wraps it. In Go&rsquo;s standard library, that is a function from <code>http.Handler</code> to <code>http.Handler</code>.</p>
+<pre><code class="language-go">type middleware func(http.Handler) http.Handler
+</code></pre>
+<p>Here is the smallest useful one, which measures how long a request takes:</p>
+<pre><code class="language-go">func timing(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        start := time.Now()
+        next.ServeHTTP(w, r)
+        log.Printf(&quot;%s %s took %s&quot;, r.Method, r.URL.Path, time.Since(start))
+    })
+}
+</code></pre>
+<p>Everything before <code>next.ServeHTTP</code> runs on the way <em>in</em>, and everything after runs on the way <em>out</em>. Stacked together, middlewares form an onion: each layer sees the request on its way to the handler and the response on its way back.</p>
+<pre><code>Request
+   ↓
+┌─ Layer A ─────────────────────┐
+│  ┌─ Layer B ───────────────┐  │
+│  │  ┌─ Handler ─────────┐  │  │
+│  │  │                   │  │  │
+│  │  └───────────────────┘  │  │
+│  └─────────────────────────┘  │
+└───────────────────────────────┘
+   ↓
+Response
+</code></pre>
+<p>To apply several middlewares without nesting calls by hand, we write a small helper. The first one listed is the outermost layer.</p>
+<pre><code class="language-go">func chain(h http.Handler, mws ...middleware) http.Handler {
+    for i := len(mws) - 1; i &gt;= 0; i-- {
+        h = mws[i](h)
+    }
+    return h
+}
+</code></pre>
+<p>It loops backwards so that <code>chain(h, a, b, c)</code> produces <code>a(b(c(h)))</code>. Composition is the whole idea: each middleware does one thing, knows nothing about the others, and the order is decided in one visible line.</p>
+<h2 id="middleware-1-request-id">Middleware 1: Request ID</h2>
+<p>A request ID is a short unique label attached to every request, echoed in the response, and included in every log line the request produces. It is the thread that ties scattered evidence together.</p>
+<pre><code class="language-go">type requestIDCtxKey struct{}
+
+func requestID(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        id := r.Header.Get(&quot;X-Request-ID&quot;)
+        if !validRequestID(id) {
+            id = newRequestID()
+        }
+
+        w.Header().Set(&quot;X-Request-ID&quot;, id)
+        ctx := context.WithValue(r.Context(), requestIDCtxKey{}, id)
+        next.ServeHTTP(w, r.WithContext(ctx))
+    })
+}
+
+func requestIDFromContext(ctx context.Context) string {
+    id, _ := ctx.Value(requestIDCtxKey{}).(string)
+    return id
+}
+
+func newRequestID() string {
+    b := make([]byte, 8)
+    if _, err := rand.Read(b); err != nil {
+        return &quot;unknown&quot;
+    }
+    return hex.EncodeToString(b)
+}
+
+func validRequestID(id string) bool {
+    if id == &quot;&quot; || len(id) &gt; 64 {
+        return false
+    }
+    for _, c := range id {
+        switch {
+        case c &gt;= 'a' &amp;&amp; c &lt;= 'z', c &gt;= 'A' &amp;&amp; c &lt;= 'Z', c &gt;= '0' &amp;&amp; c &lt;= '9', c == '-', c == '_':
+        default:
+            return false
+        }
+    }
+    return true
+}
+</code></pre>
+<p>Two decisions here are worth explaining.</p>
+<p><strong>We accept a client-supplied ID, but only a well-behaved one.</strong> Accepting an inbound ID lets a request keep one identity as it crosses several services, which is valuable later. But a header is attacker-controlled input that we are about to write into our logs. An unbounded or oddly shaped value could bloat the logs or confuse tools that parse them. So we accept short IDs made of safe characters and replace anything else.</p>
+<p><strong>The ID travels in the request&rsquo;s context.</strong> A <code>context.Context</code> is Go&rsquo;s standard way to carry request-scoped values, and later cancellation and deadlines, down through function calls. <code>WithValue</code> returns a new context holding our ID, and <code>r.WithContext</code> produces a copy of the request that carries it. The key is an unexported empty struct type, so no other package can accidentally collide with it. Chapter 24 treats context in depth, and the rule for now is to put only request-scoped facts in it, never dependencies.</p>
+<h2 id="middleware-2-access-logging">Middleware 2: Access Logging</h2>
+<p>For each request we want one line that says what happened. Go gives us <code>log/slog</code> for structured logging, and Chapter 29 explores it fully. We need only the basics. To record the status code and the size of the response, we must observe what the handler writes, so we wrap the <code>ResponseWriter</code>.</p>
+<pre><code class="language-go">type responseRecorder struct {
+    http.ResponseWriter
+    status      int
+    bytes       int
+    wroteHeader bool
+}
+
+func (rr *responseRecorder) WriteHeader(status int) {
+    if !rr.wroteHeader {
+        rr.status = status
+        rr.wroteHeader = true
+    }
+    rr.ResponseWriter.WriteHeader(status)
+}
+
+func (rr *responseRecorder) Write(b []byte) (int, error) {
+    if !rr.wroteHeader {
+        rr.WriteHeader(http.StatusOK)
+    }
+    n, err := rr.ResponseWriter.Write(b)
+    rr.bytes += n
+    return n, err
+}
+
+func (rr *responseRecorder) Unwrap() http.ResponseWriter {
+    return rr.ResponseWriter
+}
+</code></pre>
+<p>The wrapper embeds the original <code>ResponseWriter</code>, so everything it does not override passes straight through. It records only the <em>first</em> status, mirroring what the server actually sends. The <code>Unwrap</code> method matters more than it looks. A bare wrapper silently hides optional capabilities of the underlying writer, such as flushing, and Go&rsquo;s <code>http.ResponseController</code> uses <code>Unwrap</code> to find them again.</p>
+<p>With the recorder in place, the logger is short:</p>
+<pre><code class="language-go">func requestLogger(logger *slog.Logger) middleware {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            start := time.Now()
+            rr := &amp;responseRecorder{ResponseWriter: w, status: http.StatusOK}
+
+            next.ServeHTTP(rr, r)
+
+            level := slog.LevelInfo
+            if rr.status &gt;= http.StatusInternalServerError {
+                level = slog.LevelError
+            }
+            logger.LogAttrs(r.Context(), level, &quot;request&quot;,
+                slog.String(&quot;request_id&quot;, requestIDFromContext(r.Context())),
+                slog.String(&quot;method&quot;, r.Method),
+                slog.String(&quot;path&quot;, r.URL.Path),
+                slog.Int(&quot;status&quot;, rr.status),
+                slog.Int(&quot;bytes&quot;, rr.bytes),
+                slog.Float64(&quot;duration_ms&quot;, float64(time.Since(start).Microseconds())/1000),
+            )
+        })
+    }
+}
+</code></pre>
+<p>One line per request, as JSON, looks like this:</p>
+<pre><code>{&quot;time&quot;:&quot;2026-10-03T09:30:12.311Z&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;request&quot;,&quot;request_id&quot;:&quot;b41f6a0c9d3e7a52&quot;,&quot;method&quot;:&quot;POST&quot;,&quot;path&quot;:&quot;/tasks&quot;,&quot;status&quot;:201,&quot;bytes&quot;:187,&quot;duration_ms&quot;:0.42}
+</code></pre>
+<p>Note what we chose <em>not</em> to log. We record the path but not the query string, which can carry tokens. We log no headers and no bodies, which can carry passwords and personal data. A log is a permanent record that many people can read, so what goes into it deserves the same care as what goes into a response.</p>
+<h2 id="middleware-3-recovery">Middleware 3: Recovery</h2>
+<p>Recovery turns a panic into an ordinary error response.</p>
+<pre><code class="language-go">func recoverer(logger *slog.Logger) middleware {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            defer func() {
+                rec := recover()
+                if rec == nil {
+                    return
+                }
+                if rec == http.ErrAbortHandler {
+                    panic(rec)
+                }
+
+                logger.ErrorContext(r.Context(), &quot;panic recovered&quot;,
+                    slog.String(&quot;request_id&quot;, requestIDFromContext(r.Context())),
+                    slog.Any(&quot;panic&quot;, rec),
+                    slog.String(&quot;stack&quot;, string(debug.Stack())),
+                )
+                writeError(w, http.StatusInternalServerError, &quot;INTERNAL&quot;, &quot;internal error&quot;)
+            }()
+
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+</code></pre>
+<p><code>recover</code> stops a panic and returns its value, but it only works inside a deferred function, which is why <code>defer</code> and recovery are partners. The special case for <code>http.ErrAbortHandler</code> re-panics deliberately: that value is how a handler asks the server to abort a response without logging, and swallowing it would break that contract.</p>
+<p>Recovery has a limit worth knowing. If the handler already sent the status line before it panicked, the client has been told 200 and we can no longer change our mind. Recovery cannot undo bytes already sent, and in that case the write attempt only produces a warning. This is another reason handlers should prepare their results fully before they begin writing.</p>
+<h2 id="the-order-matters">The Order Matters</h2>
+<p>We now have three middlewares and must choose how to stack them. The Chapter 3 diagram of a request suggests a natural order: recovery on the outside, because it should catch everything, then request ID, then logging.</p>
+<pre><code class="language-go">chain(handler, recoverer(logger), requestID, requestLogger(logger))
+</code></pre>
+<p>This reads sensibly, and it has a flaw that only shows up when something goes wrong. The test below sends a panicking request through the stack and demands that the access log contain a line for it, carrying the correct status and request ID.</p>
+<pre><code class="language-go">func TestPanicIsRecoveredAndLogged(t *testing.T) {
+    var buf bytes.Buffer
+    logger := slog.New(slog.NewJSONHandler(&amp;buf, nil))
+
+    panicking := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        panic(&quot;boom&quot;)
+    })
+    h := chain(panicking, requestID, requestLogger(logger), recoverer(logger))
+
+    rec := httptest.NewRecorder()
+    h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, &quot;/&quot;, nil))
+
+    if rec.Code != http.StatusInternalServerError {
+        t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, http.StatusInternalServerError)
+    }
+    id := rec.Header().Get(&quot;X-Request-ID&quot;)
+    if id == &quot;&quot; {
+        t.Fatal(&quot;response has no X-Request-ID&quot;)
+    }
+
+    found := false
+    dec := json.NewDecoder(&amp;buf)
+    for dec.More() {
+        var entry map[string]any
+        if err := dec.Decode(&amp;entry); err != nil {
+            t.Fatalf(&quot;decode log line: %v&quot;, err)
+        }
+        if entry[&quot;msg&quot;] != &quot;request&quot; {
+            continue
+        }
+        found = true
+        if entry[&quot;status&quot;] != float64(http.StatusInternalServerError) {
+            t.Errorf(&quot;logged status = %v, want %d&quot;, entry[&quot;status&quot;], http.StatusInternalServerError)
+        }
+        if entry[&quot;request_id&quot;] != id {
+            t.Errorf(&quot;logged request_id = %v, want %s&quot;, entry[&quot;request_id&quot;], id)
+        }
+    }
+    if !found {
+        t.Fatal(&quot;no access log line was written for the panicking request&quot;)
+    }
+}
+</code></pre>
+<p>The test uses the order <code>requestID, requestLogger, recoverer</code>. Run it with the first-instinct order instead and it fails at the last check. The reason is the onion. With recovery outermost, the panic travels <em>through</em> the logging layer on its way out, unwinding past the code that would have written the access log line. Recovery catches it afterward and writes a 500, but the request that most needs a log line is the one that never gets one.</p>
+<p>With recovery <em>inside</em> logging, the panic is caught before it reaches the logger. Recovery writes the 500 through the logger&rsquo;s own wrapped writer, control returns normally, and the logger sees a finished request with status 500 and logs it. The ordering rule that emerges is general: <strong>a layer sees an error only if the layers inside it do not absorb it, and a layer can observe only what happens inside it.</strong> Anything that needs to observe the final outcome of a request must sit outside whatever produces that outcome.</p>
+<table>
+<thead>
+<tr>
+<th>Position</th>
+<th>Middleware</th>
+<th>Why it sits here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Outermost</td>
+<td>Request ID</td>
+<td>Everything inside, including logs and recovery, can use the ID</td>
+</tr>
+<tr>
+<td>Next</td>
+<td>Access logging</td>
+<td>Wraps recovery so it records the final status, even for panics</td>
+</tr>
+<tr>
+<td>Next</td>
+<td>Recovery</td>
+<td>Closest to the handler so panics are absorbed before they escape</td>
+</tr>
+<tr>
+<td>Later chapters</td>
+<td>Authentication</td>
+<td>Inside recovery, so a failure in auth code is also caught, and after the ID so rejected requests are traceable</td>
+</tr>
+<tr>
+<td>Innermost</td>
+<td>Handler</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-router-rsquo-s-own-errors">The Router&rsquo;s Own Errors</h2>
+<p>The last gap is the router&rsquo;s plain-text 404 and 405. The router writes those itself, inside <code>ServeMux</code>, before any of our handlers run. To bring them into our format we put a small handler in front of the mux. It asks the mux what it <em>would</em> do, and takes over only when no route matches.</p>
+<pre><code class="language-go">type statusProbe struct {
+    header http.Header
+    status int
+}
+
+func (p *statusProbe) Header() http.Header         { return p.header }
+func (p *statusProbe) Write(b []byte) (int, error) { return len(b), nil }
+func (p *statusProbe) WriteHeader(status int)      { p.status = status }
+
+func routerErrors(mux *http.ServeMux) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        handler, pattern := mux.Handler(r)
+        if pattern != &quot;&quot; {
+            mux.ServeHTTP(w, r)
+            return
+        }
+
+        probe := &amp;statusProbe{header: make(http.Header)}
+        handler.ServeHTTP(probe, r)
+
+        switch probe.status {
+        case http.StatusMethodNotAllowed:
+            if allow := probe.header.Get(&quot;Allow&quot;); allow != &quot;&quot; {
+                w.Header().Set(&quot;Allow&quot;, allow)
+            }
+            writeError(w, http.StatusMethodNotAllowed, &quot;METHOD_NOT_ALLOWED&quot;, &quot;method not allowed for this path&quot;)
+        case http.StatusNotFound:
+            writeError(w, http.StatusNotFound, &quot;NOT_FOUND&quot;, &quot;route not found&quot;)
+        default:
+            handler.ServeHTTP(w, r)
+        }
+    })
+}
+</code></pre>
+<p><code>ServeMux.Handler</code> reports the handler that would serve a request and the pattern it matched. When no pattern matches, the pattern is empty and the handler is the mux&rsquo;s built-in 404 or 405 responder. We run that responder against a throwaway <code>statusProbe</code> that only records the status and headers, then write our own JSON response in its place. The <code>default</code> branch handles anything else the mux might do, such as redirecting a non-canonical path, by letting it run for real.</p>
+<p>There is one trap here. When a pattern <em>does</em> match, we must call <code>mux.ServeHTTP</code> and not the handler that <code>Handler</code> returned. Only <code>ServeHTTP</code> records the matched wildcards on the request, and calling the handler directly would make <code>r.PathValue("id")</code> return an empty string. The failure would be silent, which is exactly the kind a test should guard against, and the existing <code>TestGetTask</code> does.</p>
+<h2 id="wiring-it-together">Wiring It Together</h2>
+<p>The server now carries a logger, so it gets a constructor. This is <em>dependency injection</em> in its plainest Go form: whatever a type needs is passed in when it is built.</p>
+<pre><code class="language-go">type Server struct {
+    store  *Store
+    logger *slog.Logger
+}
+
+func NewServer(store *Store, logger *slog.Logger) *Server {
+    return &amp;Server{store: store, logger: logger}
+}
+</code></pre>
+<p>The new <code>routes.go</code> replaces the <code>routes()</code> method in <code>handlers.go</code>:</p>
+<pre><code class="language-go">func (s *Server) routes() http.Handler {
+    mux := http.NewServeMux()
+    mux.HandleFunc(&quot;GET /health&quot;, s.health)
+    mux.HandleFunc(&quot;POST /tasks&quot;, s.createTask)
+    mux.HandleFunc(&quot;GET /tasks&quot;, s.listTasks)
+    mux.HandleFunc(&quot;GET /tasks/{id}&quot;, s.getTask)
+    mux.HandleFunc(&quot;POST /tasks/{id}/transition&quot;, s.transitionTask)
+
+    return chain(routerErrors(mux), requestID, requestLogger(s.logger), recoverer(s.logger))
+}
+</code></pre>
+<p>And <code>main</code> builds the logger once:</p>
+<pre><code class="language-go">func main() {
+    logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+    slog.SetDefault(logger)
+
+    srv := NewServer(NewStore(), logger)
+
+    httpServer := &amp;http.Server{
+        Addr:              &quot;:8080&quot;,
+        Handler:           srv.routes(),
+        ReadHeaderTimeout: 5 * time.Second,
+        ReadTimeout:       10 * time.Second,
+        WriteTimeout:      10 * time.Second,
+        IdleTimeout:       60 * time.Second,
+    }
+
+    logger.Info(&quot;forge listening&quot;, slog.String(&quot;addr&quot;, httpServer.Addr))
+    if err := httpServer.ListenAndServe(); err != nil {
+        logger.Error(&quot;server stopped&quot;, slog.Any(&quot;error&quot;, err))
+        os.Exit(1)
+    }
+}
+</code></pre>
+<p>The call to <code>slog.SetDefault</code> has a useful side effect. Since Go 1.21, the older <code>log.Printf</code> calls scattered through our handlers are routed through the default <code>slog</code> logger, so they come out as JSON too. We get one consistent log stream without touching those lines, and Chapter 29 will convert them properly.</p>
+<p>Middleware that applies to <em>every</em> route is wired here, around the whole mux. Middleware for only some routes wraps those handlers individually, which is how Chapter 9 will protect <code>/tasks</code> while leaving <code>/health</code> open:</p>
+<pre><code class="language-go">mux.Handle(&quot;POST /tasks&quot;, requireAuth(http.HandlerFunc(s.createTask)))
+</code></pre>
+<h2 id="testing-the-middleware">Testing the Middleware</h2>
+<p>The test helper now builds the server through its constructor and discards log output:</p>
+<pre><code class="language-go">func newTestHandler() http.Handler {
+    logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+    return NewServer(NewStore(), logger).routes()
+}
+</code></pre>
+<p>Beyond the panic test above, two more cases pin down the other behaviors.</p>
+<pre><code class="language-go">func TestRequestID(t *testing.T) {
+    ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+    })
+    h := chain(ok, requestID)
+
+    tests := []struct {
+        name     string
+        inbound  string
+        wantEcho bool
+    }{
+        {&quot;valid id is echoed&quot;, &quot;abc-123_X&quot;, true},
+        {&quot;missing id is generated&quot;, &quot;&quot;, false},
+        {&quot;unsafe characters are replaced&quot;, &quot;bad id!&quot;, false},
+        {&quot;overlong id is replaced&quot;, strings.Repeat(&quot;a&quot;, 65), false},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            req := httptest.NewRequest(http.MethodGet, &quot;/&quot;, nil)
+            if tt.inbound != &quot;&quot; {
+                req.Header.Set(&quot;X-Request-ID&quot;, tt.inbound)
+            }
+            rec := httptest.NewRecorder()
+            h.ServeHTTP(rec, req)
+
+            got := rec.Header().Get(&quot;X-Request-ID&quot;)
+            if got == &quot;&quot; {
+                t.Fatal(&quot;response has no X-Request-ID&quot;)
+            }
+            if tt.wantEcho &amp;&amp; got != tt.inbound {
+                t.Fatalf(&quot;id = %q, want %q&quot;, got, tt.inbound)
+            }
+            if !tt.wantEcho &amp;&amp; got == tt.inbound {
+                t.Fatalf(&quot;id %q should have been replaced&quot;, tt.inbound)
+            }
+        })
+    }
+}
+
+func TestRouterErrorsAreJSON(t *testing.T) {
+    h := newTestHandler()
+
+    tests := []struct {
+        name       string
+        method     string
+        path       string
+        wantStatus int
+        wantCode   string
+    }{
+        {&quot;unknown route&quot;, http.MethodGet, &quot;/nope&quot;, http.StatusNotFound, &quot;NOT_FOUND&quot;},
+        {&quot;wrong method&quot;, http.MethodPut, &quot;/tasks&quot;, http.StatusMethodNotAllowed, &quot;METHOD_NOT_ALLOWED&quot;},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            rec := send(h, tt.method, tt.path, &quot;&quot;, &quot;&quot;)
+
+            if rec.Code != tt.wantStatus {
+                t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, tt.wantStatus)
+            }
+            if ct := rec.Header().Get(&quot;Content-Type&quot;); ct != &quot;application/json&quot; {
+                t.Fatalf(&quot;Content-Type = %q, want application/json&quot;, ct)
+            }
+            var body errorBody
+            if err := json.NewDecoder(rec.Body).Decode(&amp;body); err != nil {
+                t.Fatalf(&quot;decode error body: %v&quot;, err)
+            }
+            if body.Error.Code != tt.wantCode {
+                t.Fatalf(&quot;code = %q, want %q&quot;, body.Error.Code, tt.wantCode)
+            }
+        })
+    }
+}
+</code></pre>
+<h2 id="what-is-still-wrong">What Is Still Wrong</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Where it is fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Error responses carry no request ID, so a client cannot quote it to support</td>
+<td>Chapter 8</td>
+</tr>
+<tr>
+<td>Errors are built in two styles: handlers that write them and helpers that return them</td>
+<td>Chapter 8</td>
+</tr>
+<tr>
+<td>Handlers still log with <code>log.Printf</code> instead of structured, request-aware logging</td>
+<td>Chapter 29</td>
+</tr>
+<tr>
+<td>Anyone can call any endpoint</td>
+<td>Chapter 9</td>
+</tr>
+<tr>
+<td>Logs are written synchronously to standard output with no sampling or limits</td>
+<td>Chapters 29 and 40</td>
+</tr>
+</tbody>
+</table>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We gave every request an identity, a log line, and a guarantee that a panic becomes a well-formed error response, all without touching a single handler.</p>
+<p><strong>What complexity did we introduce?</strong> A layer of indirection that makes execution harder to trace by reading code, a request context that carries hidden values, and an ordering rule that is easy to get wrong silently.</p>
+<p><strong>What failure modes appeared?</strong> Panics that escape logging, wrapped writers that hide capabilities, client-controlled data flowing into logs, and path values lost by bypassing the mux.</p>
+<p><strong>What would break at 10× scale?</strong> Log volume. One line per request is cheap at a hundred requests per second and expensive at ten thousand, where sampling, levels, and log shipping become real costs.</p>
+<p><strong>When should we not use middleware?</strong> For behavior that applies to one endpoint, or that needs to know what the handler decided. Middleware is for concerns that are independent of what any particular endpoint does.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Re-add the <code>/boom</code> route and compare its behavior with and without <code>recoverer</code> in the chain. What does the client see in each case, and what appears in the log?</li>
+<li>Change the chain order to <code>recoverer, requestID, requestLogger</code> and run <code>TestPanicIsRecoveredAndLogged</code>. Explain in your own words why the final assertion fails.</li>
+<li>Write a middleware that sets <code>X-Content-Type-Options: nosniff</code> on every response. Where in the chain should it go, and does the position matter?</li>
+<li>Send a request with a 65-character <code>X-Request-ID</code>. Then craft one containing a space or a newline escape. What does the server do, and why is it unwise to trust the value?</li>
+<li>Remove the <code>Unwrap</code> method from <code>responseRecorder</code>. Write a handler that calls <code>http.NewResponseController(w).Flush()</code> and observe the difference.</li>
+</ol>
+<p>Chapter 8 turns to the shape of failure itself. We classify the errors a backend produces, design an error response that clients can build on, and finally unify the two styles of error handling that have been growing side by side since Chapter 4.</p>
+<hr>
+    <nav class="pager" aria-label="Chapter"><a href="/read/building-handlers/">← Chapter 6</a><a href="/read/validation-and-error-contracts/">Chapter 8 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 7: Routing and Middleware,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/routing-and-middleware/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-problem-made-visible">The Problem, Made Visible</a></li><li><a href="#routing-in-depth">Routing in Depth</a></li><li><a href="#what-middleware-is">What Middleware Is</a></li><li><a href="#middleware-1-request-id">Middleware 1: Request ID</a></li><li><a href="#middleware-2-access-logging">Middleware 2: Access Logging</a></li><li><a href="#middleware-3-recovery">Middleware 3: Recovery</a></li><li><a href="#the-order-matters">The Order Matters</a></li><li><a href="#the-router-rsquo-s-own-errors">The Router&amp;rsquo;s Own Errors</a></li><li><a href="#wiring-it-together">Wiring It Together</a></li><li><a href="#testing-the-middleware">Testing the Middleware</a></li><li><a href="#what-is-still-wrong">What Is Still Wrong</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

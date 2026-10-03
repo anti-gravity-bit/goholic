@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chapter 9: Authentication and Authorization · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/authentication-and-authorization/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 9: Authentication and Authorization · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.">
+<meta property="og:url" content="https://goholic.in/read/authentication-and-authorization/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 9: Authentication and Authorization · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 9: Authentication and Authorization", "headline": "Chapter 9: Authentication and Authorization", "url": "https://goholic.in/read/authentication-and-authorization/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-04", "inLanguage": "en", "description": "Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.", "position": 10, "wordCount": 4996, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 9: Authentication and Authorization", "item": "https://goholic.in/read/authentication-and-authorization/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part II · HTTP and API Engineering · Chapter 9</p>
+    <h1>Chapter 9: Authentication and Authorization</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 22 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Run Forge and list its tasks:</p>
+<pre><code>$ curl -s localhost:8080/tasks
+</code></pre>
+<p>You get every task in the system, and you did not have to say who you are. You can also transition any of them. Chapter 1 described a backend as a series of decisions about state, and every decision needs inputs. We have been making decisions without one of the most important inputs there is: <strong>who is asking?</strong></p>
+<p>This chapter adds that input. We add users, passwords, and sessions, give every task an owner, and use the middleware and error contract from the previous chapters so that security becomes a layer instead of a rewrite. The goal is engineering judgment, not cryptography. We will decide what to build, what to buy, and what to leave out.</p>
+<h2 id="two-different-questions">Two Different Questions</h2>
+<p>Two words are routinely confused, and the confusion causes real bugs.</p>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Name</th>
+<th>Failure response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who are you?</td>
+<td><strong>Authentication</strong></td>
+<td>401. The caller has not proven an identity</td>
+</tr>
+<tr>
+<td>Are you allowed to do this?</td>
+<td><strong>Authorization</strong></td>
+<td>403 or 404. The identity is known but lacks permission</td>
+</tr>
+</tbody>
+</table>
+<p>HTTP&rsquo;s own naming is part of the confusion: the status 401 is titled &ldquo;Unauthorized,&rdquo; but it means <em>unauthenticated</em>. We use our own codes, <code>UNAUTHENTICATED</code> and <code>FORBIDDEN</code>, so that nobody has to remember the quirk.</p>
+<p>The two questions are asked in order and by different parts of the system. Authentication is a property of the request and belongs in middleware. Authorization is a property of the request <em>and the specific resource</em>, so it can only be answered once the resource is known, which means it lives close to the handler.</p>
+<pre><code>User → Credentials → Authentication → Identity → Authorization → Resource
+</code></pre>
+<h2 id="the-decisions">The Decisions</h2>
+<p>Before writing code, record the decisions, as we did in Chapter 3.</p>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Choice</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Password storage</td>
+<td>Salted bcrypt hash, never the password</td>
+<td>A stolen database should not reveal passwords</td>
+</tr>
+<tr>
+<td>Credential after login</td>
+<td>Opaque random session token</td>
+<td>Revocable, simple, and has no signature footguns</td>
+</tr>
+<tr>
+<td>Token storage on the server</td>
+<td>Only a SHA-256 hash of the token</td>
+<td>A leaked session table should not yield usable tokens</td>
+</tr>
+<tr>
+<td>Roles</td>
+<td><code>member</code> and <code>admin</code></td>
+<td>Enough to demonstrate the model. More come only when needed</td>
+</tr>
+<tr>
+<td>Task ownership</td>
+<td>Each task has one owner, fixed at creation</td>
+<td>Immutable ownership makes authorization checks race-free</td>
+</tr>
+<tr>
+<td>Access to others&rsquo; tasks</td>
+<td>404 for members, full access for admins</td>
+<td>Do not confirm that a resource exists to someone who cannot see it</td>
+</tr>
+<tr>
+<td>Creating admins</td>
+<td>Never through the API. Seeded at startup</td>
+<td>An endpoint that can grant admin is a privilege escalation path</td>
+</tr>
+</tbody>
+</table>
+<h2 id="passwords-store-hashes-slowly">Passwords: Store Hashes, Slowly</h2>
+<p>Never store passwords, and never store them with a fast hash. Fast hashes such as SHA-256 let an attacker with a stolen table test billions of guesses per second. A password hash must be deliberately <em>slow</em> and <em>salted</em>, which is a unique random value per password so that identical passwords produce different hashes. Bcrypt does both, and it is a sound default.</p>
+<p>This is our first dependency outside the standard library, and it deserves a deliberate decision rather than an accident. Writing your own password hashing is exactly the kind of work you should not do. Install it with:</p>
+<pre><code>go get golang.org/x/crypto/bcrypt
+</code></pre>
+<pre><code class="language-go">package main
+
+import (
+    &quot;sync&quot;
+
+    &quot;golang.org/x/crypto/bcrypt&quot;
+)
+
+const (
+    minPasswordBytes = 8
+    maxPasswordBytes = 72
+)
+
+var bcryptCost = 12
+
+func hashPassword(password string) ([]byte, error) {
+    return bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+}
+
+func mustHash(password string) []byte {
+    hash, err := hashPassword(password)
+    if err != nil {
+        panic(err)
+    }
+    return hash
+}
+
+var dummyHash = sync.OnceValue(func() []byte { return mustHash(&quot;timing-equalizer&quot;) })
+</code></pre>
+<p>Three details matter. The <strong>cost</strong> is the work factor: each increment doubles the time, and 12 takes roughly a quarter of a second on typical hardware. That is imperceptible to a person logging in and expensive to an attacker guessing at scale. It is a variable, not a constant, so tests can lower it. Bcrypt also reads only the first <strong>72 bytes</strong> of a password, so we enforce that maximum explicitly rather than silently ignoring the rest. And <code>mustHash</code> panics on failure, which is the one place a panic is appropriate: it runs once, lazily, and can only fail on programmer error, so failing loudly beats limping along.</p>
+<p>The <code>dummyHash</code> has a purpose we will see in a moment.</p>
+<h2 id="users-and-sessions">Users and Sessions</h2>
+<p>Users live in a store shaped like the task store, with one important property. The check for a taken email and the insertion happen under the same lock, which is the lesson of Chapter 6 applied again: two simultaneous registrations with the same email must produce exactly one winner.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;errors&quot;
+    &quot;sort&quot;
+    &quot;sync&quot;
+    &quot;time&quot;
+)
+
+type Role string
+
+const (
+    RoleMember Role = &quot;member&quot;
+    RoleAdmin  Role = &quot;admin&quot;
+)
+
+type User struct {
+    ID           string    `json:&quot;id&quot;`
+    Email        string    `json:&quot;email&quot;`
+    Role         Role      `json:&quot;role&quot;`
+    CreatedAt    time.Time `json:&quot;created_at&quot;`
+    PasswordHash []byte    `json:&quot;-&quot;`
+}
+
+var (
+    ErrEmailTaken   = errors.New(&quot;email already registered&quot;)
+    ErrUserNotFound = errors.New(&quot;user not found&quot;)
+)
+
+type UserStore struct {
+    mu      sync.RWMutex
+    byID    map[string]User
+    byEmail map[string]string
+}
+
+func NewUserStore() *UserStore {
+    return &amp;UserStore{byID: make(map[string]User), byEmail: make(map[string]string)}
+}
+
+func (s *UserStore) Create(email string, passwordHash []byte, role Role) (User, error) {
+    id, err := newID(&quot;usr_&quot;)
+    if err != nil {
+        return User{}, err
+    }
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    if _, taken := s.byEmail[email]; taken {
+        return User{}, ErrEmailTaken
+    }
+    user := User{ID: id, Email: email, Role: role, CreatedAt: time.Now().UTC(), PasswordHash: passwordHash}
+    s.byID[id] = user
+    s.byEmail[email] = id
+    return user, nil
+}
+
+func (s *UserStore) GetByEmail(email string) (User, error) {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    id, ok := s.byEmail[email]
+    if !ok {
+        return User{}, ErrUserNotFound
+    }
+    return s.byID[id], nil
+}
+
+func (s *UserStore) GetByID(id string) (User, error) {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    user, ok := s.byID[id]
+    if !ok {
+        return User{}, ErrUserNotFound
+    }
+    return user, nil
+}
+
+func (s *UserStore) List() []User {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    users := make([]User, 0, len(s.byID))
+    for _, user := range s.byID {
+        users = append(users, user)
+    }
+    sort.Slice(users, func(i, j int) bool {
+        if users[i].CreatedAt.Equal(users[j].CreatedAt) {
+            return users[i].ID &lt; users[j].ID
+        }
+        return users[i].CreatedAt.Before(users[j].CreatedAt)
+    })
+    return users
+}
+</code></pre>
+<p>The <code>PasswordHash</code> field is tagged <code>json:"-"</code>, so it can never be serialized into a response, even by accident. This is the same defensive idea as the unexported <code>cause</code> in <code>APIError</code>: make the dangerous thing impossible to emit instead of relying on every handler to remember not to.</p>
+<p><code>newID</code> now needs to produce IDs for more than one kind of thing. Give it a prefix parameter in <code>store.go</code>:</p>
+<pre><code class="language-go">func newID(prefix string) (string, error) {
+    b := make([]byte, 6)
+    if _, err := rand.Read(b); err != nil {
+        return &quot;&quot;, err
+    }
+    return prefix + hex.EncodeToString(b), nil
+}
+</code></pre>
+<p>and call it as <code>newID("tsk_")</code> inside <code>Store.Create</code>.</p>
+<h3 id="session-or-jwt">Session or JWT?</h3>
+<p>Once a user logs in, the client needs something to present on later requests. The two common choices are server-side sessions and signed tokens such as JWTs.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Opaque session token</th>
+<th>JWT (signed, self-contained)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Where the truth lives</td>
+<td>A server-side store</td>
+<td>Inside the token itself</td>
+</tr>
+<tr>
+<td>Revoking a login</td>
+<td>Delete the session. Immediate</td>
+<td>Hard. The token is valid until it expires</td>
+</tr>
+<tr>
+<td>Checking a request</td>
+<td>A store lookup</td>
+<td>Verify a signature, no lookup</td>
+</tr>
+<tr>
+<td>Other services verifying it</td>
+<td>They must share the store</td>
+<td>They need only the key</td>
+</tr>
+<tr>
+<td>Typical pitfalls</td>
+<td>The store becomes a dependency</td>
+<td>Algorithm confusion, long-lived stolen tokens, bloat</td>
+</tr>
+</tbody>
+</table>
+<p>Forge is a single service, and revocation matters, because &ldquo;log out&rdquo; and &ldquo;an administrator disabled this account&rdquo; should take effect at once. So Forge uses opaque sessions. This is a decision about <em>this system</em>, not a verdict on JWTs. If several independent services later need to verify identity without sharing a store, signed tokens become the better trade, and Chapter 20&rsquo;s discussion of boundaries returns to that.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;crypto/rand&quot;
+    &quot;crypto/sha256&quot;
+    &quot;encoding/base64&quot;
+    &quot;sync&quot;
+    &quot;time&quot;
+)
+
+type session struct {
+    userID  string
+    expires time.Time
+}
+
+type SessionStore struct {
+    mu       sync.Mutex
+    sessions map[[32]byte]session
+    ttl      time.Duration
+    now      func() time.Time
+}
+
+func NewSessionStore(ttl time.Duration) *SessionStore {
+    return &amp;SessionStore{sessions: make(map[[32]byte]session), ttl: ttl, now: time.Now}
+}
+
+func (s *SessionStore) Create(userID string) (string, time.Time, error) {
+    b := make([]byte, 32)
+    if _, err := rand.Read(b); err != nil {
+        return &quot;&quot;, time.Time{}, err
+    }
+    token := base64.RawURLEncoding.EncodeToString(b)
+    expires := s.now().Add(s.ttl)
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.sessions[sha256.Sum256([]byte(token))] = session{userID: userID, expires: expires}
+    return token, expires, nil
+}
+
+func (s *SessionStore) Lookup(token string) (string, bool) {
+    key := sha256.Sum256([]byte(token))
+
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    sess, ok := s.sessions[key]
+    if !ok {
+        return &quot;&quot;, false
+    }
+    if !s.now().Before(sess.expires) {
+        delete(s.sessions, key)
+        return &quot;&quot;, false
+    }
+    return sess.userID, true
+}
+
+func (s *SessionStore) Revoke(token string) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    delete(s.sessions, sha256.Sum256([]byte(token)))
+}
+</code></pre>
+<p>The token is 32 random bytes, far too many to guess. The store keeps only its SHA-256 hash. A fast hash is correct <em>here</em>, unlike for passwords, because the input is high-entropy random data and cannot be guessed offline. Looking sessions up by hash also means lookup timing reveals nothing about the token itself. The clock is an injectable <code>now</code> function so tests can move time without sleeping.</p>
+<p>One cost is visible already: expired sessions that are never looked up again stay in the map forever. A real system needs a periodic sweep, which is a background job, and Chapter 25 builds that machinery.</p>
+<h2 id="register-login-logout">Register, Login, Logout</h2>
+<p>New error shapes first. Add to <code>errors.go</code>:</p>
+<pre><code class="language-go">func unauthenticated(message string) *APIError {
+    return &amp;APIError{Status: http.StatusUnauthorized, Code: &quot;UNAUTHENTICATED&quot;, Message: message}
+}
+
+func forbidden(message string) *APIError {
+    return &amp;APIError{Status: http.StatusForbidden, Code: &quot;FORBIDDEN&quot;, Message: message}
+}
+
+var errInvalidCredentials = &amp;APIError{
+    Status:  http.StatusUnauthorized,
+    Code:    &quot;INVALID_CREDENTIALS&quot;,
+    Message: &quot;email or password is incorrect&quot;,
+}
+</code></pre>
+<p>and extend <code>toAPIError</code> with one more case, before the <code>default</code>:</p>
+<pre><code class="language-go">case errors.Is(err, ErrEmailTaken):
+    return conflict(&quot;ALREADY_EXISTS&quot;, &quot;email already registered&quot;)
+</code></pre>
+<p><code>errInvalidCredentials</code> is a shared package-level value, which would be a data race hazard if <code>writeAPIError</code> mutated it. It does not: Chapter 8 made <code>writeAPIError</code> copy the error before attaching a request ID, and this is the payoff.</p>
+<p>Registration validates both fields and reports every problem at once, as Chapter 8 prescribed.</p>
+<pre><code class="language-go">type credentials struct {
+    Email    string `json:&quot;email&quot;`
+    Password string `json:&quot;password&quot;`
+}
+
+func normalizeEmail(email string) string {
+    return strings.ToLower(strings.TrimSpace(email))
+}
+
+func validateEmail(email string) *FieldError {
+    if email == &quot;&quot; {
+        return &amp;FieldError{Field: &quot;email&quot;, Code: &quot;REQUIRED&quot;, Message: &quot;email is required&quot;}
+    }
+    addr, err := mail.ParseAddress(email)
+    if err != nil || addr.Address != email || len(email) &gt; 254 {
+        return &amp;FieldError{Field: &quot;email&quot;, Code: &quot;INVALID_VALUE&quot;, Message: &quot;email must be a valid address&quot;}
+    }
+    return nil
+}
+
+func validatePassword(password string) *FieldError {
+    switch {
+    case password == &quot;&quot;:
+        return &amp;FieldError{Field: &quot;password&quot;, Code: &quot;REQUIRED&quot;, Message: &quot;password is required&quot;}
+    case len(password) &lt; minPasswordBytes:
+        return &amp;FieldError{Field: &quot;password&quot;, Code: &quot;TOO_SHORT&quot;, Message: fmt.Sprintf(&quot;password must be at least %d characters&quot;, minPasswordBytes)}
+    case len(password) &gt; maxPasswordBytes:
+        return &amp;FieldError{Field: &quot;password&quot;, Code: &quot;TOO_LONG&quot;, Message: fmt.Sprintf(&quot;password must be at most %d bytes&quot;, maxPasswordBytes)}
+    }
+    return nil
+}
+
+func (s *Server) register(w http.ResponseWriter, r *http.Request) error {
+    var req credentials
+    if err := decodeJSON(w, r, &amp;req); err != nil {
+        return err
+    }
+
+    email := normalizeEmail(req.Email)
+    var problems []FieldError
+    if p := validateEmail(email); p != nil {
+        problems = append(problems, *p)
+    }
+    if p := validatePassword(req.Password); p != nil {
+        problems = append(problems, *p)
+    }
+    if len(problems) &gt; 0 {
+        return invalidArgument(&quot;request validation failed&quot;, problems...)
+    }
+
+    hash, err := hashPassword(req.Password)
+    if err != nil {
+        return err
+    }
+    user, err := s.users.Create(email, hash, RoleMember)
+    if err != nil {
+        return err
+    }
+
+    writeJSON(w, http.StatusCreated, user)
+    return nil
+}
+</code></pre>
+<p>Registration deliberately leaves a hole open: a second registration with the same email returns a 409, which tells a stranger that the address has an account. Preventing that requires an email-verification flow, which is out of scope here, so we accept this leak and name it in the &ldquo;still wrong&rdquo; table below. Login is where it matters most, and there we close it.</p>
+<pre><code class="language-go">type loginResponse struct {
+    Token     string    `json:&quot;token&quot;`
+    ExpiresAt time.Time `json:&quot;expires_at&quot;`
+}
+
+func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
+    var req credentials
+    if err := decodeJSON(w, r, &amp;req); err != nil {
+        return err
+    }
+
+    user, lookupErr := s.users.GetByEmail(normalizeEmail(req.Email))
+    hash := dummyHash()
+    switch {
+    case lookupErr == nil:
+        hash = user.PasswordHash
+    case !errors.Is(lookupErr, ErrUserNotFound):
+        return lookupErr
+    }
+
+    // Always run the comparison, so a missing account takes as long as a wrong password.
+    matchErr := bcrypt.CompareHashAndPassword(hash, []byte(req.Password))
+    if lookupErr != nil || matchErr != nil {
+        return errInvalidCredentials
+    }
+
+    token, expires, err := s.sessions.Create(user.ID)
+    if err != nil {
+        return err
+    }
+
+    w.Header().Set(&quot;Cache-Control&quot;, &quot;no-store&quot;)
+    writeJSON(w, http.StatusOK, loginResponse{Token: token, ExpiresAt: expires})
+    return nil
+}
+</code></pre>
+<p>Two behaviors here are about <em>not leaking information</em>. The response for an unknown email and for a wrong password is byte-for-byte the same, so an attacker cannot use login to discover which emails are registered. And the response <em>time</em> is the same too: if we skipped the slow bcrypt comparison for unknown emails, the faster response would reveal them just as clearly. The dummy hash exists to make the work identical on both paths. The <code>Cache-Control: no-store</code> header keeps the token out of any intermediary&rsquo;s cache.</p>
+<p>Logout needs the token again, and we read it with a small helper that also serves the middleware:</p>
+<pre><code class="language-go">func bearerToken(r *http.Request) (string, bool) {
+    scheme, token, found := strings.Cut(r.Header.Get(&quot;Authorization&quot;), &quot; &quot;)
+    token = strings.TrimSpace(token)
+    if !found || !strings.EqualFold(scheme, &quot;Bearer&quot;) || token == &quot;&quot; {
+        return &quot;&quot;, false
+    }
+    return token, true
+}
+
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) error {
+    if token, ok := bearerToken(r); ok {
+        s.sessions.Revoke(token)
+    }
+    w.WriteHeader(http.StatusNoContent)
+    return nil
+}
+</code></pre>
+<h2 id="the-authentication-middleware">The Authentication Middleware</h2>
+<p>Authentication happens once, in middleware, and the result travels in the request context, just like the request ID.</p>
+<pre><code class="language-go">type Identity struct {
+    UserID string
+    Role   Role
+}
+
+type identityCtxKey struct{}
+
+func identityFromContext(ctx context.Context) (Identity, bool) {
+    id, ok := ctx.Value(identityCtxKey{}).(Identity)
+    return id, ok
+}
+
+func writeUnauthenticated(w http.ResponseWriter, r *http.Request, logger *slog.Logger, message string) {
+    w.Header().Set(&quot;WWW-Authenticate&quot;, &quot;Bearer&quot;)
+    writeAPIError(w, r, logger, unauthenticated(message))
+}
+
+func requireAuth(sessions *SessionStore, users *UserStore, logger *slog.Logger) middleware {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            token, ok := bearerToken(r)
+            if !ok {
+                writeUnauthenticated(w, r, logger, &quot;missing or malformed Authorization header&quot;)
+                return
+            }
+            userID, ok := sessions.Lookup(token)
+            if !ok {
+                writeUnauthenticated(w, r, logger, &quot;invalid or expired token&quot;)
+                return
+            }
+            user, err := users.GetByID(userID)
+            if errors.Is(err, ErrUserNotFound) {
+                writeUnauthenticated(w, r, logger, &quot;invalid or expired token&quot;)
+                return
+            }
+            if err != nil {
+                writeAPIError(w, r, logger, err)
+                return
+            }
+
+            ctx := context.WithValue(r.Context(), identityCtxKey{}, Identity{UserID: user.ID, Role: user.Role})
+            next.ServeHTTP(w, r.WithContext(ctx))
+        })
+    }
+}
+</code></pre>
+<p>The middleware loads the user on every request instead of caching the role in the session. That costs a lookup, and it means a role change or a deleted account takes effect on the very next request. Once users live in a database, that lookup will matter, and a short cache will be the trade to consider.</p>
+<p>Handlers read the identity through a function that <strong>fails closed</strong>:</p>
+<pre><code class="language-go">func requireIdentity(r *http.Request) (Identity, error) {
+    id, ok := identityFromContext(r.Context())
+    if !ok {
+        return Identity{}, internalError(errors.New(&quot;handler requires authentication but none was applied&quot;))
+    }
+    return id, nil
+}
+</code></pre>
+<p>If a developer registers a route and forgets to wrap it in authentication, the handler does not quietly proceed as an anonymous user. It returns a 500 and logs the mistake. A missing security layer should produce a loud failure, never a silent open door.</p>
+<p>A second small middleware handles role requirements, and it fails closed as well.</p>
+<pre><code class="language-go">func requireRole(logger *slog.Logger, role Role) middleware {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            id, ok := identityFromContext(r.Context())
+            if !ok || id.Role != role {
+                writeAPIError(w, r, logger, forbidden(&quot;insufficient permissions&quot;))
+                return
+            }
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+</code></pre>
+<h2 id="authorization-ownership-and-roles">Authorization: Ownership and Roles</h2>
+<p>Authentication tells us who the caller is. Now the tasks need owners. Add the field to <code>Task</code>:</p>
+<pre><code class="language-go">OwnerID string `json:&quot;owner_id&quot;`
+</code></pre>
+<p><code>Store.Create</code> takes the owner as its first argument and records it, and <code>Store.List</code> gains an owner filter:</p>
+<pre><code class="language-go">func (s *Store) Create(ownerID, title string) (Task, error)
+
+// List returns tasks in creation order. An empty ownerID returns every task.
+func (s *Store) List(ownerID string) []Task
+</code></pre>
+<p>Inside <code>List</code>, the loop skips tasks whose owner does not match whenever <code>ownerID</code> is not empty. The empty-string-means-everything convention is a shortcut we will remove when a database lets us express the filter as a query.</p>
+<p>The access rule is one small function, in one place:</p>
+<pre><code class="language-go">func (i Identity) canAccess(t Task) bool {
+    return i.Role == RoleAdmin || t.OwnerID == i.UserID
+}
+</code></pre>
+<p>The handlers apply it after loading the task.</p>
+<pre><code class="language-go">func (s *Server) getTask(w http.ResponseWriter, r *http.Request) error {
+    identity, err := requireIdentity(r)
+    if err != nil {
+        return err
+    }
+
+    task, err := s.store.Get(r.PathValue(&quot;id&quot;))
+    if err != nil {
+        return err
+    }
+    if !identity.canAccess(task) {
+        return notFound(&quot;task not found&quot;)
+    }
+
+    writeJSON(w, http.StatusOK, task)
+    return nil
+}
+</code></pre>
+<p><code>transitionTask</code> gets the same treatment: load the task, check access, and only then call <code>Transition</code>. <code>createTask</code> takes the owner from the identity, never from the request:</p>
+<pre><code class="language-go">task, err := s.store.Create(identity.UserID, title)
+</code></pre>
+<p>And <code>listTasks</code> asks for the caller&rsquo;s tasks only, unless the caller is an admin:</p>
+<pre><code class="language-go">ownerID := identity.UserID
+if identity.Role == RoleAdmin {
+    ownerID = &quot;&quot;
+}
+writeJSON(w, http.StatusOK, s.store.List(ownerID))
+</code></pre>
+<h3 id="why-404-and-not-403">Why 404 and not 403</h3>
+<p>When a member requests another member&rsquo;s task, we answer <strong>404</strong>, exactly as if the task did not exist. A 403 would confirm that the ID is real, which is a small leak, and it would let an attacker enumerate valid IDs by watching which ones are forbidden. The rule we adopt:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Response</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The caller may not know the resource exists</td>
+<td>404</td>
+<td>Do not confirm existence</td>
+</tr>
+<tr>
+<td>The caller knows the resource exists but may not perform this action</td>
+<td>403</td>
+<td>The refusal reveals nothing new</td>
+</tr>
+</tbody>
+</table>
+<p>Listing all users is the second kind: every member knows the endpoint exists, so a member who calls <code>GET /users</code> gets a 403.</p>
+<h3 id="immutable-owners-make-checks-safe">Immutable owners make checks safe</h3>
+<p>There is a subtle point in &ldquo;load the task, check access, then act.&rdquo; Between the check and the action, something could change. If it can change in a way that affects the answer, the check is worthless, which is the same check-then-act race from Chapter 1. Here it cannot: a task&rsquo;s owner is set at creation and never changes, so access cannot be revoked between the two steps. <strong>An authorization decision based on an immutable attribute is race-free. A decision based on mutable state must be made atomically with the action.</strong> If we ever add &ldquo;transfer ownership,&rdquo; the design must be revisited.</p>
+<h3 id="roles-permissions-and-when-to-grow">Roles, permissions, and when to grow</h3>
+<p>Two roles with a hard-coded rule is the right size for Forge. As rules multiply, systems tend to move through a predictable sequence.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Shape</th>
+<th>Fits when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Role checks</td>
+<td>&ldquo;Admins may do X&rdquo;</td>
+<td>A few roles, few rules</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Roles grant named permissions such as <code>tasks:read_all</code></td>
+<td>Many rules, or rules that change without redeploying</td>
+</tr>
+<tr>
+<td>Ownership and relationships</td>
+<td>&ldquo;Members of this project may edit its tasks&rdquo;</td>
+<td>Sharing between users</td>
+</tr>
+<tr>
+<td>Policy engines</td>
+<td>Rules written in a dedicated policy language</td>
+<td>Many services need the same rules</td>
+</tr>
+</tbody>
+</table>
+<p>Moving up the table is a response to pain. Moving early buys complexity with no benefit.</p>
+<h2 id="wiring-it-together">Wiring It Together</h2>
+<p>The server gains its two stores. Update <code>Server</code> and its constructor:</p>
+<pre><code class="language-go">type Server struct {
+    store    *Store
+    users    *UserStore
+    sessions *SessionStore
+    logger   *slog.Logger
+}
+
+func NewServer(store *Store, users *UserStore, sessions *SessionStore, logger *slog.Logger) *Server {
+    return &amp;Server{store: store, users: users, sessions: sessions, logger: logger}
+}
+</code></pre>
+<p>Routes now declare, in one visible place, which of them require authentication and which require a role:</p>
+<pre><code class="language-go">func (s *Server) routes() http.Handler {
+    auth := requireAuth(s.sessions, s.users, s.logger)
+    admin := requireRole(s.logger, RoleAdmin)
+
+    mux := http.NewServeMux()
+    mux.HandleFunc(&quot;GET /health&quot;, s.handle(s.health))
+
+    mux.HandleFunc(&quot;POST /auth/register&quot;, s.handle(s.register))
+    mux.HandleFunc(&quot;POST /auth/login&quot;, s.handle(s.login))
+    mux.Handle(&quot;POST /auth/logout&quot;, auth(s.handle(s.logout)))
+
+    mux.Handle(&quot;GET /users/me&quot;, auth(s.handle(s.me)))
+    mux.Handle(&quot;GET /users&quot;, auth(admin(s.handle(s.listUsers))))
+
+    mux.Handle(&quot;POST /tasks&quot;, auth(s.handle(s.createTask)))
+    mux.Handle(&quot;GET /tasks&quot;, auth(s.handle(s.listTasks)))
+    mux.Handle(&quot;GET /tasks/{id}&quot;, auth(s.handle(s.getTask)))
+    mux.Handle(&quot;POST /tasks/{id}/transition&quot;, auth(s.handle(s.transitionTask)))
+
+    return chain(routerErrors(mux, s.logger), requestID, requestLogger(s.logger), recoverer(s.logger))
+}
+</code></pre>
+<p>Note that authentication wraps individual routes, <em>inside</em> the global middleware chain. A request rejected as unauthenticated still receives a request ID and an access log line, and a panic inside authentication code is still recovered. The <code>me</code> and <code>listUsers</code> handlers follow the same shape as the others: take the identity, call a store, write JSON.</p>
+<p>Finally, <code>main</code> seeds the first administrator. This is a placeholder for the configuration system of Chapter 37, and it keeps admin creation out of the API:</p>
+<pre><code class="language-go">users := NewUserStore()
+if email, password := os.Getenv(&quot;FORGE_ADMIN_EMAIL&quot;), os.Getenv(&quot;FORGE_ADMIN_PASSWORD&quot;); email != &quot;&quot; &amp;&amp; password != &quot;&quot; {
+    hash, err := hashPassword(password)
+    if err != nil {
+        logger.Error(&quot;hash admin password&quot;, slog.Any(&quot;error&quot;, err))
+        os.Exit(1)
+    }
+    if _, err := users.Create(normalizeEmail(email), hash, RoleAdmin); err != nil {
+        logger.Error(&quot;create admin&quot;, slog.Any(&quot;error&quot;, err))
+        os.Exit(1)
+    }
+}
+
+srv := NewServer(NewStore(), users, NewSessionStore(24*time.Hour), logger)
+</code></pre>
+<h2 id="security-boundaries">Security Boundaries</h2>
+<p>A trust boundary is a line where data passes from something you do not control to something you do. Everything that crosses it must be treated as hostile until proven otherwise.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Trusted?</th>
+<th>How we handle it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Request body fields</td>
+<td>No</td>
+<td>Strict decoding and validation</td>
+</tr>
+<tr>
+<td><code>Authorization</code> header</td>
+<td>No</td>
+<td>Looked up, never interpreted</td>
+</tr>
+<tr>
+<td>Owner or role claimed by the client</td>
+<td>Never</td>
+<td>Identity comes only from the verified session</td>
+</tr>
+<tr>
+<td>The <code>X-Request-ID</code> header</td>
+<td>No</td>
+<td>Validated before it reaches the logs</td>
+</tr>
+<tr>
+<td>Our own stores</td>
+<td>Yes, but fail closed</td>
+<td>Missing identity produces a 500, never access</td>
+</tr>
+</tbody>
+</table>
+<p>One boundary deserves an example. Suppose a client sends <code>{"title":"x","owner_id":"usr_someoneelse"}</code>. Many frameworks bind every field they find to the object, which lets a client set properties it should never control, a flaw called mass assignment. Forge is immune, and the reason is a decision from Chapter 5: the decoder rejects unknown fields. <code>owner_id</code> is not part of <code>createTaskRequest</code>, so the request fails with a 400. A strict contract is also a security control.</p>
+<p>Everything in this chapter assumes the connection is encrypted. A bearer token sent over plain HTTP is a password written on a postcard, so Forge must be served over TLS. Where TLS terminates is a deployment decision for Chapter 38.</p>
+<h2 id="testing-security">Testing Security</h2>
+<p>The test environment grows to hold the stores, and bcrypt runs at its minimum cost so the suite stays fast.</p>
+<pre><code class="language-go">func TestMain(m *testing.M) {
+    bcryptCost = bcrypt.MinCost
+    os.Exit(m.Run())
+}
+
+type testEnv struct {
+    handler http.Handler
+    users   *UserStore
+}
+
+func newTestEnv() *testEnv {
+    logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+    users := NewUserStore()
+    srv := NewServer(NewStore(), users, NewSessionStore(time.Hour), logger)
+    return &amp;testEnv{handler: srv.routes(), users: users}
+}
+
+func sendAs(h http.Handler, token, method, path, contentType, body string) *httptest.ResponseRecorder {
+    req := httptest.NewRequest(method, path, strings.NewReader(body))
+    if contentType != &quot;&quot; {
+        req.Header.Set(&quot;Content-Type&quot;, contentType)
+    }
+    if token != &quot;&quot; {
+        req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+token)
+    }
+    rec := httptest.NewRecorder()
+    h.ServeHTTP(rec, req)
+    return rec
+}
+
+func send(h http.Handler, method, path, contentType, body string) *httptest.ResponseRecorder {
+    return sendAs(h, &quot;&quot;, method, path, contentType, body)
+}
+
+func (e *testEnv) login(t *testing.T, email, password string) string {
+    t.Helper()
+    creds := fmt.Sprintf(`{&quot;email&quot;:%q,&quot;password&quot;:%q}`, email, password)
+
+    rec := send(e.handler, http.MethodPost, &quot;/auth/login&quot;, &quot;application/json&quot;, creds)
+    if rec.Code != http.StatusOK {
+        t.Fatalf(&quot;login status = %d, body = %s&quot;, rec.Code, rec.Body)
+    }
+    var body loginResponse
+    if err := json.NewDecoder(rec.Body).Decode(&amp;body); err != nil {
+        t.Fatalf(&quot;decode login response: %v&quot;, err)
+    }
+    return body.Token
+}
+
+func (e *testEnv) signUp(t *testing.T, email, password string) string {
+    t.Helper()
+    creds := fmt.Sprintf(`{&quot;email&quot;:%q,&quot;password&quot;:%q}`, email, password)
+
+    rec := send(e.handler, http.MethodPost, &quot;/auth/register&quot;, &quot;application/json&quot;, creds)
+    if rec.Code != http.StatusCreated {
+        t.Fatalf(&quot;register status = %d, body = %s&quot;, rec.Code, rec.Body)
+    }
+    return e.login(t, email, password)
+}
+
+func (e *testEnv) addAdmin(t *testing.T, email, password string) {
+    t.Helper()
+    hash, err := hashPassword(password)
+    if err != nil {
+        t.Fatal(err)
+    }
+    if _, err := e.users.Create(email, hash, RoleAdmin); err != nil {
+        t.Fatal(err)
+    }
+}
+</code></pre>
+<p>Every existing test replaces <code>newTestHandler()</code> with <code>newTestEnv()</code>, signs a user up to obtain a token, and swaps <code>send(</code> for <code>sendAs(env.handler, token,</code>. The compiler and the contract tests will point at anything you miss. The new tests state the security properties directly.</p>
+<pre><code class="language-go">func TestAuthentication(t *testing.T) {
+    env := newTestEnv()
+    token := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+
+    tests := []struct {
+        name       string
+        token      string
+        wantStatus int
+    }{
+        {&quot;no token&quot;, &quot;&quot;, http.StatusUnauthorized},
+        {&quot;garbage token&quot;, &quot;not-a-token&quot;, http.StatusUnauthorized},
+        {&quot;valid token&quot;, token, http.StatusOK},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            rec := sendAs(env.handler, tt.token, http.MethodGet, &quot;/tasks&quot;, &quot;&quot;, &quot;&quot;)
+            if rec.Code != tt.wantStatus {
+                t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, tt.wantStatus)
+            }
+            if tt.wantStatus == http.StatusUnauthorized &amp;&amp; rec.Header().Get(&quot;WWW-Authenticate&quot;) == &quot;&quot; {
+                t.Fatal(&quot;401 response is missing WWW-Authenticate&quot;)
+            }
+        })
+    }
+
+    if rec := sendAs(env.handler, token, http.MethodPost, &quot;/auth/logout&quot;, &quot;&quot;, &quot;&quot;); rec.Code != http.StatusNoContent {
+        t.Fatalf(&quot;logout status = %d, want %d&quot;, rec.Code, http.StatusNoContent)
+    }
+    if rec := sendAs(env.handler, token, http.MethodGet, &quot;/tasks&quot;, &quot;&quot;, &quot;&quot;); rec.Code != http.StatusUnauthorized {
+        t.Fatalf(&quot;token still valid after logout: status = %d&quot;, rec.Code)
+    }
+}
+
+func TestLoginDoesNotRevealWhichPartWasWrong(t *testing.T) {
+    env := newTestEnv()
+    env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+
+    attempt := func(email, password string) (int, string, string) {
+        creds := fmt.Sprintf(`{&quot;email&quot;:%q,&quot;password&quot;:%q}`, email, password)
+        rec := send(env.handler, http.MethodPost, &quot;/auth/login&quot;, &quot;application/json&quot;, creds)
+
+        var body testErrorBody
+        if err := json.NewDecoder(rec.Body).Decode(&amp;body); err != nil {
+            t.Fatalf(&quot;decode: %v&quot;, err)
+        }
+        return rec.Code, body.Error.Code, body.Error.Message
+    }
+
+    s1, c1, m1 := attempt(&quot;ada@example.com&quot;, &quot;wrong password&quot;)
+    s2, c2, m2 := attempt(&quot;nobody@example.com&quot;, &quot;wrong password&quot;)
+
+    if s1 != http.StatusUnauthorized || s1 != s2 || c1 != c2 || m1 != m2 {
+        t.Fatalf(&quot;responses differ: (%d %s %q) vs (%d %s %q)&quot;, s1, c1, m1, s2, c2, m2)
+    }
+}
+
+func TestPasswordHashNeverExposed(t *testing.T) {
+    env := newTestEnv()
+    creds := `{&quot;email&quot;:&quot;ada@example.com&quot;,&quot;password&quot;:&quot;correct horse&quot;}`
+
+    rec := send(env.handler, http.MethodPost, &quot;/auth/register&quot;, &quot;application/json&quot;, creds)
+    if strings.Contains(rec.Body.String(), &quot;$2&quot;) {
+        t.Fatalf(&quot;register response contains a password hash: %s&quot;, rec.Body)
+    }
+
+    token := env.login(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+    rec = sendAs(env.handler, token, http.MethodGet, &quot;/users/me&quot;, &quot;&quot;, &quot;&quot;)
+    if strings.Contains(rec.Body.String(), &quot;$2&quot;) {
+        t.Fatalf(&quot;users/me response contains a password hash: %s&quot;, rec.Body)
+    }
+}
+
+func TestTaskOwnership(t *testing.T) {
+    env := newTestEnv()
+    env.addAdmin(t, &quot;root@example.com&quot;, &quot;admin password&quot;)
+    ada := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+    bob := env.signUp(t, &quot;bob@example.com&quot;, &quot;battery staple&quot;)
+    admin := env.login(t, &quot;root@example.com&quot;, &quot;admin password&quot;)
+    const jsonType = &quot;application/json&quot;
+
+    rec := sendAs(env.handler, ada, http.MethodPost, &quot;/tasks&quot;, jsonType, `{&quot;title&quot;:&quot;Ada's task&quot;}`)
+    if rec.Code != http.StatusCreated {
+        t.Fatalf(&quot;create status = %d, body = %s&quot;, rec.Code, rec.Body)
+    }
+    var created Task
+    if err := json.NewDecoder(rec.Body).Decode(&amp;created); err != nil {
+        t.Fatalf(&quot;decode: %v&quot;, err)
+    }
+    path := &quot;/tasks/&quot; + created.ID
+
+    tests := []struct {
+        name       string
+        token      string
+        method     string
+        path       string
+        body       string
+        wantStatus int
+    }{
+        {&quot;owner reads&quot;, ada, http.MethodGet, path, &quot;&quot;, http.StatusOK},
+        {&quot;other member reads&quot;, bob, http.MethodGet, path, &quot;&quot;, http.StatusNotFound},
+        {&quot;other member transitions&quot;, bob, http.MethodPost, path + &quot;/transition&quot;, `{&quot;to&quot;:&quot;running&quot;}`, http.StatusNotFound},
+        {&quot;admin reads&quot;, admin, http.MethodGet, path, &quot;&quot;, http.StatusOK},
+        {&quot;owner transitions&quot;, ada, http.MethodPost, path + &quot;/transition&quot;, `{&quot;to&quot;:&quot;running&quot;}`, http.StatusOK},
+        {&quot;cannot assign an owner&quot;, bob, http.MethodPost, &quot;/tasks&quot;, `{&quot;title&quot;:&quot;x&quot;,&quot;owner_id&quot;:&quot;` + created.OwnerID + `&quot;}`, http.StatusBadRequest},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            rec := sendAs(env.handler, tt.token, tt.method, tt.path, jsonType, tt.body)
+            if rec.Code != tt.wantStatus {
+                t.Fatalf(&quot;status = %d, want %d, body = %s&quot;, rec.Code, tt.wantStatus, rec.Body)
+            }
+        })
+    }
+}
+
+func TestOnlyAdminsListUsers(t *testing.T) {
+    env := newTestEnv()
+    env.addAdmin(t, &quot;root@example.com&quot;, &quot;admin password&quot;)
+    ada := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+    admin := env.login(t, &quot;root@example.com&quot;, &quot;admin password&quot;)
+
+    if rec := sendAs(env.handler, ada, http.MethodGet, &quot;/users&quot;, &quot;&quot;, &quot;&quot;); rec.Code != http.StatusForbidden {
+        t.Fatalf(&quot;member status = %d, want %d&quot;, rec.Code, http.StatusForbidden)
+    }
+    if rec := sendAs(env.handler, admin, http.MethodGet, &quot;/users&quot;, &quot;&quot;, &quot;&quot;); rec.Code != http.StatusOK {
+        t.Fatalf(&quot;admin status = %d, want %d&quot;, rec.Code, http.StatusOK)
+    }
+}
+
+func TestSessionExpiry(t *testing.T) {
+    now := time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)
+    sessions := NewSessionStore(time.Hour)
+    sessions.now = func() time.Time { return now }
+
+    token, _, err := sessions.Create(&quot;usr_1&quot;)
+    if err != nil {
+        t.Fatal(err)
+    }
+    if _, ok := sessions.Lookup(token); !ok {
+        t.Fatal(&quot;a fresh session should be valid&quot;)
+    }
+
+    now = now.Add(time.Hour)
+    if _, ok := sessions.Lookup(token); ok {
+        t.Fatal(&quot;an expired session should be rejected&quot;)
+    }
+}
+</code></pre>
+<p>Notice how the ownership table reads as a security policy. Anyone reviewing the system can check the whole rule set by reading seven lines.</p>
+<h2 id="what-is-still-wrong">What Is Still Wrong</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Where it is fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nothing stops an attacker from guessing passwords at full speed</td>
+<td>Chapters 31 and 42</td>
+</tr>
+<tr>
+<td>Registration reveals which emails have accounts</td>
+<td>Needs email verification, beyond this book&rsquo;s scope</td>
+</tr>
+<tr>
+<td>Users, sessions, and tasks vanish on restart</td>
+<td>Part III</td>
+</tr>
+<tr>
+<td>Expired sessions are never swept from memory</td>
+<td>Chapter 25</td>
+</tr>
+<tr>
+<td>No password reset, multi-factor authentication, or account lockout</td>
+<td>Chapter 42 lists them</td>
+</tr>
+<tr>
+<td>The <code>NewServer</code> signature grows with every dependency</td>
+<td>Chapter 17</td>
+</tr>
+</tbody>
+</table>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We gave the system a notion of identity, tied every task to an owner, and made access decisions in one small, testable place, without changing the shape of any handler beyond reading the identity.</p>
+<p><strong>What complexity did we introduce?</strong> Two new stores, a new dependency, two middlewares, and the discipline that every route must declare its authentication. Security is now a property of the route table.</p>
+<p><strong>What failure modes appeared?</strong> Information leaks through timing and error messages, mass assignment, forgotten authentication on a new route, stolen tokens, and brute-force guessing. Each has either a control in this chapter or a named chapter that supplies one.</p>
+<p><strong>What would break at 10× scale?</strong> The per-request user lookup, the single process-wide session store that a second instance would not share, and bcrypt&rsquo;s deliberate CPU cost, which an attacker can use to saturate login endpoints.</p>
+<p><strong>When should we not build our own authentication?</strong> Often. Many teams are better served by an identity provider that handles passwords, verification, reset, and multi-factor authentication. Building it is a reasonable way to understand it. Operating it forever is a separate commitment, and the security surface is large.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Remove the dummy-hash comparison from <code>login</code> and time a login for a missing user versus a wrong password, using many repetitions. How large is the difference, and could an attacker measure it over a network?</li>
+<li>Add a new route and forget to wrap it in <code>auth</code>. What happens when a handler calls <code>requireIdentity</code>? Why is that better than the handler silently treating the caller as anonymous?</li>
+<li>Temporarily change the 404 for a foreign task to a 403. What can a member now learn about other members&rsquo; tasks? Write the enumeration attack in two sentences.</li>
+<li>Design, without implementing, a &ldquo;share this task with another user&rdquo; feature. Which of the four authorization models in this chapter does it require, and which immutable-attribute argument stops working?</li>
+<li>Compare Forge&rsquo;s session design with a JWT design for the same requirements. List the two scenarios in which you would switch, and the specific work the switch would require.</li>
+</ol>
+<p>Chapter 10 closes Part II. Forge now has identity, and with identity comes clients we do not control. We turn to what happens when an API must change while others depend on it.</p>
+<hr>
+    <nav class="pager" aria-label="Chapter"><a href="/read/validation-and-error-contracts/">← Chapter 8</a><a href="/read/api-design-that-survives-change/">Chapter 10 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 9: Authentication and Authorization,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/authentication-and-authorization/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#two-different-questions">Two Different Questions</a></li><li><a href="#the-decisions">The Decisions</a></li><li><a href="#passwords-store-hashes-slowly">Passwords: Store Hashes, Slowly</a></li><li><a href="#users-and-sessions">Users and Sessions</a></li><li><a href="#register-login-logout">Register, Login, Logout</a></li><li><a href="#the-authentication-middleware">The Authentication Middleware</a></li><li><a href="#authorization-ownership-and-roles">Authorization: Ownership and Roles</a></li><li><a href="#wiring-it-together">Wiring It Together</a></li><li><a href="#security-boundaries">Security Boundaries</a></li><li><a href="#testing-security">Testing Security</a></li><li><a href="#what-is-still-wrong">What Is Still Wrong</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

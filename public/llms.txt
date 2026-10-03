@@ -1,7 +1,7 @@
 # Defer Nothing
 > Building Backend Systems in Go, by Abir Sarkar.
 
-Defer Nothing is Abir Sarkar's practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.
+Defer Nothing is Abir Sarkar's practical book on designing, building, testing, and operating production backend services in Go. Read the introduction, Part I, and Part II free on goholic.in.
 
 ## Author
 - Name: Abir Sarkar
@@ -17,6 +17,12 @@ Defer Nothing is Abir Sarkar's practical book on designing, building, testing, a
 - [Chapter 2: From Request to Response](https://goholic.in/read/from-request-to-response/): A physical map of one request, from TCP and TLS through router, handler, service, repository, and database, and a four-question method for tracing it.
 - [Chapter 3: Designing Before Coding](https://goholic.in/read/designing-before-coding/): The decisions that are expensive to reverse: Forge's requirements, invariants, lifecycle, collision policy, API contract, and failure modes, written before any Go.
 - [Chapter 4: The First Go Service](https://goholic.in/read/the-first-go-service/): The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.
+- [Chapter 5: HTTP Without the Magic](https://goholic.in/read/http-without-the-magic/): HTTP without the framework: message bytes, methods as promises, status codes, and a stricter POST /tasks that rejects the wrong type, unknown fields, and oversized bodies.
+- [Chapter 6: Building Handlers](https://goholic.in/read/building-handlers/): A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.
+- [Chapter 7: Routing and Middleware](https://goholic.in/read/routing-and-middleware/): Request IDs, access logs, panic recovery, and JSON for the router's own 404 and 405. The order of the stack decides which layer can see a failure.
+- [Chapter 8: Validation and Error Contracts](https://goholic.in/read/validation-and-error-contracts/): One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.
+- [Chapter 9: Authentication and Authorization](https://goholic.in/read/authentication-and-authorization/): Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.
+- [Chapter 10: API Design That Survives Change](https://goholic.in/read/api-design-that-survives-change/): Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.
 
 ## How to cite
 Abir Sarkar, Defer Nothing: Building Backend Systems in Go, goholic.in, 2026.

@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>https://goholic.in/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/read/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/author/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/read/introduction/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/read/what-is-a-backend/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/read/from-request-to-response/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/read/designing-before-coding/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
-<url><loc>https://goholic.in/read/the-first-go-service/</loc><lastmod>2026-10-03</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/author/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/introduction/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/what-is-a-backend/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/from-request-to-response/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/designing-before-coding/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/the-first-go-service/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/http-without-the-magic/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/building-handlers/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/routing-and-middleware/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/validation-and-error-contracts/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/authentication-and-authorization/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://goholic.in/read/api-design-that-survives-change/</loc><lastmod>2026-10-04</lastmod><changefreq>weekly</changefreq></url>
 </urlset>

@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chapter 6: Building Handlers · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/building-handlers/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 6: Building Handlers · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.">
+<meta property="og:url" content="https://goholic.in/read/building-handlers/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 6: Building Handlers · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 6: Building Handlers", "headline": "Chapter 6: Building Handlers", "url": "https://goholic.in/read/building-handlers/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-04", "inLanguage": "en", "description": "A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.", "position": 7, "wordCount": 2835, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 6: Building Handlers", "item": "https://goholic.in/read/building-handlers/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part II · HTTP and API Engineering · Chapter 6</p>
+    <h1>Chapter 6: Building Handlers</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 12 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Handlers begin small and grow like weeds. The <code>createTask</code> handler from Chapter 4 was twenty lines. It looked fine because it did very little. This chapter gives Forge a more demanding job, lets the handler absorb all of it, and then looks honestly at what we built.</p>
+<p>The teaching pattern here recurs for the rest of the book: first make the problem visible, then introduce the abstraction that solves it. An abstraction offered before its problem is just vocabulary.</p>
+<h2 id="the-new-requirement">The New Requirement</h2>
+<p>Chapter 3 defined a lifecycle for tasks, with five states and a table of allowed transitions. Until now nothing could change a task&rsquo;s status. Forge needs an endpoint that does.</p>
+<p>We choose a single action endpoint:</p>
+<pre><code>POST /tasks/{id}/transition
+{ &quot;to&quot;: &quot;running&quot; }
+</code></pre>
+<p>It is a <code>POST</code> because it changes state and is not idempotent in the HTTP sense. The success response is the updated task. The failure cases come straight from Chapter 3.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Body malformed, or <code>to</code> is not a known status</td>
+<td>400 <code>INVALID_ARGUMENT</code></td>
+</tr>
+<tr>
+<td>Task does not exist</td>
+<td>404 <code>NOT_FOUND</code></td>
+</tr>
+<tr>
+<td>Transition is not allowed from the current status</td>
+<td>409 <code>INVALID_TRANSITION</code></td>
+</tr>
+<tr>
+<td>Two callers race for the same transition</td>
+<td>One succeeds, the others receive 409</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-first-version">The First Version</h2>
+<p>Here is the handler written the way it naturally gets written when you add features one line at a time. It is correct enough to pass a quick manual test.</p>
+<pre><code class="language-go">func (s *Server) transitionTask(w http.ResponseWriter, r *http.Request) {
+    mediaType, _, err := mime.ParseMediaType(r.Header.Get(&quot;Content-Type&quot;))
+    if err != nil || mediaType != &quot;application/json&quot; {
+        writeError(w, http.StatusUnsupportedMediaType, &quot;UNSUPPORTED_MEDIA_TYPE&quot;, &quot;Content-Type must be application/json&quot;)
+        return
+    }
+
+    var req struct {
+        To Status `json:&quot;to&quot;`
+    }
+    r.Body = http.MaxBytesReader(w, r.Body, 1&lt;&lt;20)
+    dec := json.NewDecoder(r.Body)
+    dec.DisallowUnknownFields()
+    if err := dec.Decode(&amp;req); err != nil {
+        writeError(w, http.StatusBadRequest, &quot;INVALID_ARGUMENT&quot;, &quot;invalid request body&quot;)
+        return
+    }
+
+    switch req.To {
+    case StatusPending, StatusRunning, StatusCompleted, StatusFailed, StatusCancelled:
+    default:
+        writeError(w, http.StatusBadRequest, &quot;INVALID_ARGUMENT&quot;, &quot;to must be a valid status&quot;)
+        return
+    }
+
+    s.store.mu.Lock()
+    defer s.store.mu.Unlock()
+
+    task, ok := s.store.tasks[r.PathValue(&quot;id&quot;)]
+    if !ok {
+        writeError(w, http.StatusNotFound, &quot;NOT_FOUND&quot;, &quot;task not found&quot;)
+        return
+    }
+
+    allowed := false
+    switch task.Status {
+    case StatusPending:
+        allowed = req.To == StatusRunning || req.To == StatusCancelled
+    case StatusRunning:
+        allowed = req.To == StatusCompleted || req.To == StatusFailed || req.To == StatusCancelled
+    case StatusFailed:
+        allowed = req.To == StatusPending
+    }
+    if !allowed {
+        log.Printf(&quot;rejected transition %s -&gt; %s for %s&quot;, task.Status, req.To, task.ID)
+        writeError(w, http.StatusConflict, &quot;INVALID_TRANSITION&quot;,
+            fmt.Sprintf(&quot;cannot change status from %s to %s&quot;, task.Status, req.To))
+        return
+    }
+
+    task.Status = req.To
+    task.UpdatedAt = time.Now().UTC()
+    s.store.tasks[task.ID] = task
+
+    log.Printf(&quot;task %s moved to %s&quot;, task.ID, task.Status)
+    writeJSON(w, http.StatusOK, task)
+}
+</code></pre>
+<p>It runs, and it enforces the rules. Now read it as a reviewer would, asking what each part is responsible for.</p>
+<h2 id="reading-the-problem">Reading the Problem</h2>
+<p>This single function does five different jobs.</p>
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Lines it occupies</th>
+<th>What is wrong with it being here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Decoding and content negotiation</td>
+<td>The first block</td>
+<td>Copied from <code>createTask</code>; every new endpoint will copy it again</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>The <code>switch req.To</code> block</td>
+<td>The list of valid statuses is now a second copy of knowledge that belongs to the task</td>
+</tr>
+<tr>
+<td>Business rules</td>
+<td>The <code>allowed</code> switch</td>
+<td>Cannot be tested without constructing an HTTP request, and cannot be reused by a background worker</td>
+</tr>
+<tr>
+<td>State change</td>
+<td>Direct access to <code>s.store.tasks</code></td>
+<td>The handler reaches into the store&rsquo;s private internals and bypasses its API</td>
+</tr>
+<tr>
+<td>Response and logging</td>
+<td>The final lines</td>
+<td>Error shaping is repeated, with each branch building its own response</td>
+</tr>
+</tbody>
+</table>
+<p>Three of these problems are worse than they look.</p>
+<p><strong>The lock is held while writing the response.</strong> <code>defer s.store.mu.Unlock()</code> releases the lock only when the function returns, which is after <code>writeJSON</code> has pushed bytes to the client. If that client is slow, every other request that needs the store waits behind it. A single slow connection can stall the service. Nothing in the code looks wrong, and in testing nothing would be, because test clients are fast.</p>
+<p><strong>The rules are trapped.</strong> The transition table from Chapter 3 now exists as a nested <code>switch</code> inside an HTTP handler. To test whether <code>completed</code> can go to <code>pending</code>, you must build a request, a recorder, and a server. When a background worker later needs to move tasks through the same lifecycle, it would have to duplicate the rules or call the HTTP endpoint.</p>
+<p><strong>It is easy to get wrong in the small.</strong> Every <code>writeError</code> here is followed by a <code>return</code>. Forget one, and the function continues to run, writing a second response on top of the first. Go reports this only as a log line about a superfluous <code>WriteHeader</code> call, and the client receives a corrupted response. A function with many exits has many chances for that mistake.</p>
+<p>This is the pressure the abstraction answers. We do not refactor because the function is long. We refactor because it mixes responsibilities, and every mixed responsibility is a place where a change to one concern can break another.</p>
+<h2 id="the-shape-of-a-good-handler">The Shape of a Good Handler</h2>
+<p>Before changing anything, decide what a handler is <em>for</em>. Its job is to translate between HTTP and the application. It should do exactly four things, in order.</p>
+<pre><code>1. Decode     turn the HTTP request into plain values
+2. Validate   check what can be checked from the input alone
+3. Call       hand plain values to the application and receive a result or an error
+4. Respond    turn the result or error into an HTTP response
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>A handler does</th>
+<th>A handler does not</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Read the path, query, headers, and body</td>
+<td>Know the rules of the lifecycle</td>
+</tr>
+<tr>
+<td>Check that input is well formed</td>
+<td>Reach into storage internals</td>
+</tr>
+<tr>
+<td>Choose status codes and error codes</td>
+<td>Hold locks</td>
+</tr>
+<tr>
+<td>Write the response</td>
+<td>Perform multi-step state changes</td>
+</tr>
+</tbody>
+</table>
+<p>The right-hand column is the important one. It is a list of things the handler <em>knows nothing about</em>, and those ignorances are what make the code easy to change.</p>
+<h2 id="the-refactor">The Refactor</h2>
+<p>We work in three moves, and each one removes one of the problems above.</p>
+<h3 id="move-1-give-the-rules-a-home">Move 1: Give the rules a home</h3>
+<p>The transition table becomes data in <code>task.go</code>, with a small function to query it. It is plain Go with no HTTP in sight.</p>
+<pre><code class="language-go">var allowedTransitions = map[Status][]Status{
+    StatusPending: {StatusRunning, StatusCancelled},
+    StatusRunning: {StatusCompleted, StatusFailed, StatusCancelled},
+    StatusFailed:  {StatusPending},
+}
+
+func (s Status) Valid() bool {
+    switch s {
+    case StatusPending, StatusRunning, StatusCompleted, StatusFailed, StatusCancelled:
+        return true
+    }
+    return false
+}
+
+func CanTransition(from, to Status) bool {
+    for _, next := range allowedTransitions[from] {
+        if next == to {
+            return true
+        }
+    }
+    return false
+}
+
+type TransitionError struct {
+    From Status
+    To   Status
+}
+
+func (e *TransitionError) Error() string {
+    return fmt.Sprintf(&quot;cannot change status from %s to %s&quot;, e.From, e.To)
+}
+</code></pre>
+<p>Terminal states have no entry in the map, so ranging over them yields nothing and no transition is allowed, which matches the table in Chapter 3. <code>TransitionError</code> is a custom error type: a struct with an <code>Error() string</code> method satisfies the <code>error</code> interface. Carrying the two statuses lets callers inspect <em>why</em> a transition failed instead of parsing a message.</p>
+<h3 id="move-2-make-the-store-own-the-state-change">Move 2: Make the store own the state change</h3>
+<p>The check and the write must happen as one step. If they were separate, two callers could both pass the check and both write, which is exactly the collision Chapter 3 told us to prevent. Putting both inside the store&rsquo;s lock makes the decision atomic, and the losing caller simply finds the task already moved.</p>
+<pre><code class="language-go">func (s *Store) Transition(id string, to Status) (Task, error) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    task, ok := s.tasks[id]
+    if !ok {
+        return Task{}, ErrNotFound
+    }
+    if !CanTransition(task.Status, to) {
+        return Task{}, &amp;TransitionError{From: task.Status, To: to}
+    }
+
+    task.Status = to
+    task.UpdatedAt = time.Now().UTC()
+    s.tasks[id] = task
+    return task, nil
+}
+</code></pre>
+<p>The method returns the task by value and releases the lock on return. By the time the handler writes anything to the network, the lock is long gone, which fixes the slow-client problem without the handler knowing it ever existed. The collision policy, reject the loser, falls out of the structure for free: the second caller of &ldquo;start this task&rdquo; sees <code>running</code> and is rejected as an invalid transition.</p>
+<h3 id="move-3-one-place-to-translate-errors">Move 3: One place to translate errors</h3>
+<p>Both the 404 and the 409 are translations from the application&rsquo;s vocabulary to HTTP. We centralize them.</p>
+<pre><code class="language-go">func handleError(w http.ResponseWriter, err error) {
+    var transitionErr *TransitionError
+
+    switch {
+    case errors.Is(err, ErrNotFound):
+        writeError(w, http.StatusNotFound, &quot;NOT_FOUND&quot;, &quot;task not found&quot;)
+    case errors.As(err, &amp;transitionErr):
+        writeError(w, http.StatusConflict, &quot;INVALID_TRANSITION&quot;, transitionErr.Error())
+    default:
+        log.Printf(&quot;internal error: %v&quot;, err)
+        writeError(w, http.StatusInternalServerError, &quot;INTERNAL&quot;, &quot;internal error&quot;)
+    }
+}
+</code></pre>
+<p><code>errors.Is</code> matches a specific error value, and <code>errors.As</code> matches an error <em>type</em> and extracts it. The <code>default</code> branch is the safety net: anything unrecognized becomes a generic 500, with the detail logged and withheld from the client.</p>
+<h3 id="the-result">The result</h3>
+<p>With those pieces in place, the handler shrinks to its four jobs.</p>
+<pre><code class="language-go">type transitionRequest struct {
+    To Status `json:&quot;to&quot;`
+}
+
+func (s *Server) transitionTask(w http.ResponseWriter, r *http.Request) {
+    var req transitionRequest
+    if !decodeJSON(w, r, &amp;req) {
+        return
+    }
+    if !req.To.Valid() {
+        writeError(w, http.StatusBadRequest, &quot;INVALID_ARGUMENT&quot;, &quot;to must be a valid status&quot;)
+        return
+    }
+
+    task, err := s.store.Transition(r.PathValue(&quot;id&quot;), req.To)
+    if err != nil {
+        handleError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusOK, task)
+}
+</code></pre>
+<p>Eighteen lines, and each one maps to decode, validate, call, or respond. Register it in <code>routes()</code>:</p>
+<pre><code class="language-go">mux.HandleFunc(&quot;POST /tasks/{id}/transition&quot;, s.transitionTask)
+</code></pre>
+<p>The other handlers adopt the same shape. <code>getTask</code> loses its inline error branching:</p>
+<pre><code class="language-go">func (s *Server) getTask(w http.ResponseWriter, r *http.Request) {
+    task, err := s.store.Get(r.PathValue(&quot;id&quot;))
+    if err != nil {
+        handleError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusOK, task)
+}
+</code></pre>
+<p>In <code>createTask</code>, the failure branch after <code>s.store.Create(title)</code> becomes a call to <code>handleError(w, err)</code> in the same way. A new error type is now one added <code>case</code> in one function, and every handler benefits.</p>
+<p>One more Go detail deserves a mention. <code>mux.HandleFunc("POST /tasks", s.createTask)</code> passes <code>s.createTask</code> as a value. This is a <em>method value</em>: a method bound to a particular receiver, here the <code>Server</code>, so the router can call it later as an ordinary function. It is how handlers get access to the store without global variables.</p>
+<h2 id="testing-what-we-extracted">Testing What We Extracted</h2>
+<p>The payoff of the refactor is that each concern can now be tested at its own level. The lifecycle rules need no HTTP at all. This test restates the Chapter 3 table independently of the code, and checks every possible pair.</p>
+<pre><code class="language-go">func TestCanTransition(t *testing.T) {
+    allowed := map[[2]Status]bool{
+        {StatusPending, StatusRunning}:   true,
+        {StatusPending, StatusCancelled}: true,
+        {StatusRunning, StatusCompleted}: true,
+        {StatusRunning, StatusFailed}:    true,
+        {StatusRunning, StatusCancelled}: true,
+        {StatusFailed, StatusPending}:    true,
+    }
+    all := []Status{StatusPending, StatusRunning, StatusCompleted, StatusFailed, StatusCancelled}
+
+    for _, from := range all {
+        for _, to := range all {
+            want := allowed[[2]Status{from, to}]
+            if got := CanTransition(from, to); got != want {
+                t.Errorf(&quot;CanTransition(%s, %s) = %v, want %v&quot;, from, to, got, want)
+            }
+        }
+    }
+}
+</code></pre>
+<p>Twenty-five combinations are covered by one loop, and any change to the lifecycle that is not also a change to the test fails loudly. That is what it looks like when a design document becomes executable.</p>
+<p>The collision policy from Chapter 3 gets its own test, and this is the one that proves the atomicity claim.</p>
+<pre><code class="language-go">func TestTransitionCollision(t *testing.T) {
+    store := NewStore()
+    task, err := store.Create(&quot;collide&quot;)
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    const attempts = 20
+    var wg sync.WaitGroup
+    var mu sync.Mutex
+    wins, conflicts := 0, 0
+
+    for i := 0; i &lt; attempts; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            _, err := store.Transition(task.ID, StatusRunning)
+
+            mu.Lock()
+            defer mu.Unlock()
+
+            var transitionErr *TransitionError
+            switch {
+            case err == nil:
+                wins++
+            case errors.As(err, &amp;transitionErr):
+                conflicts++
+            default:
+                t.Errorf(&quot;unexpected error: %v&quot;, err)
+            }
+        }()
+    }
+    wg.Wait()
+
+    if wins != 1 || conflicts != attempts-1 {
+        t.Fatalf(&quot;wins = %d, conflicts = %d; want 1 and %d&quot;, wins, conflicts, attempts-1)
+    }
+}
+</code></pre>
+<p>Twenty goroutines race to start the same task. Exactly one wins, and nineteen are rejected. Run it with <code>-race</code> many times; it should never flake. Finally, a thin test of the handler itself, which now only needs to verify the HTTP translation.</p>
+<pre><code class="language-go">func TestTransitionEndpoint(t *testing.T) {
+    h := newTestHandler()
+    const jsonType = &quot;application/json&quot;
+
+    rec := send(h, http.MethodPost, &quot;/tasks&quot;, jsonType, `{&quot;title&quot;:&quot;Write chapter one&quot;}`)
+    var created Task
+    if err := json.NewDecoder(rec.Body).Decode(&amp;created); err != nil {
+        t.Fatalf(&quot;decode created task: %v&quot;, err)
+    }
+    path := &quot;/tasks/&quot; + created.ID + &quot;/transition&quot;
+
+    tests := []struct {
+        name       string
+        path       string
+        body       string
+        wantStatus int
+    }{
+        {&quot;start&quot;, path, `{&quot;to&quot;:&quot;running&quot;}`, http.StatusOK},
+        {&quot;start again&quot;, path, `{&quot;to&quot;:&quot;running&quot;}`, http.StatusConflict},
+        {&quot;unknown status&quot;, path, `{&quot;to&quot;:&quot;banana&quot;}`, http.StatusBadRequest},
+        {&quot;unknown task&quot;, &quot;/tasks/tsk_nope/transition&quot;, `{&quot;to&quot;:&quot;running&quot;}`, http.StatusNotFound},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            rec := send(h, http.MethodPost, tt.path, jsonType, tt.body)
+            if rec.Code != tt.wantStatus {
+                t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, tt.wantStatus)
+            }
+        })
+    }
+}
+</code></pre>
+<p>The cases run in order against shared state: the first starts the task, and the second proves a repeat is rejected. The business rules are covered elsewhere, so the handler test stays small.</p>
+<h2 id="what-the-refactor-cost">What the Refactor Cost</h2>
+<p>Every abstraction has a price, and honesty about it is part of the method.</p>
+<table>
+<thead>
+<tr>
+<th>What we gained</th>
+<th>What we sacrificed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rules testable and reusable without HTTP</td>
+<td>The rules now live in two files, <code>task.go</code> and <code>store.go</code>, instead of one function</td>
+</tr>
+<tr>
+<td>The lock is no longer held across network writes</td>
+<td>The store has grown a responsibility it arguably should not have</td>
+</tr>
+<tr>
+<td>One place to translate errors</td>
+<td>A level of indirection when reading a handler</td>
+</tr>
+<tr>
+<td>Handlers short enough to read at a glance</td>
+<td>A reader must now follow calls to see the whole behavior</td>
+</tr>
+</tbody>
+</table>
+<p>The second row matters. The store is deciding whether a transition is <em>legal</em>, and that is a business decision, not a storage concern. We put it there because the check and the write must be atomic, and the store owns the lock. It is a pragmatic compromise, not a clean design. Chapter 17 introduces a service layer to hold decisions, and Chapter 13 shows how a database makes the check-and-write atomic without a process-wide lock. Both will move this code again. We keep it here for now because the problem is visible and the cost of moving it later is small.</p>
+<h2 id="what-is-still-wrong">What Is Still Wrong</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Where it is fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A client that retries a transition after a timeout receives a 409, though the first attempt succeeded</td>
+<td>Chapter 10</td>
+</tr>
+<tr>
+<td>Handlers still call the store directly, with no layer for decisions</td>
+<td>Chapter 17</td>
+</tr>
+<tr>
+<td><code>decodeJSON</code> writes a response and returns a boolean, while <code>handleError</code> takes an error: two styles</td>
+<td>Chapter 8</td>
+</tr>
+<tr>
+<td>No request IDs or request logging</td>
+<td>Chapter 7</td>
+</tr>
+<tr>
+<td>Anyone can transition any task</td>
+<td>Chapter 9</td>
+</tr>
+</tbody>
+</table>
+<p>The first row connects back to Chapter 5. The uncertainty about whether a request took effect now has a concrete symptom: an honest client doing the right thing is told its request conflicted with itself.</p>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We moved the lifecycle rules, state changes, and error translation out of the handler so that each concern can be tested and changed on its own, and so that the handler returned to its single job.</p>
+<p><strong>What complexity did we introduce?</strong> A custom error type, a central error mapper, and more files. The code is easier to change and harder to read top to bottom in one sitting.</p>
+<p><strong>What failure modes appeared?</strong> A lock held across a network write, missing <code>return</code> statements after error responses, and rules duplicated between handlers and workers. The refactor removes the first and third and reduces the second.</p>
+<p><strong>What would break at 10× scale?</strong> The single process-wide lock. Every state change in the system queues behind one mutex, and a second instance of the service would not share it at all. Both limits point toward the database transactions of Part III.</p>
+<p><strong>When should we not refactor this way?</strong> When there is one endpoint, no second consumer of the rules, and no concurrency. A twenty-line handler that does one thing does not need an error mapper. We extracted because a second endpoint arrived and the duplication became visible, not before.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>In the first-version handler, delete the <code>return</code> after the 404 response and send a request for a missing task. What does the client receive, and what appears in the server log?</li>
+<li>In the original handler, add a <code>time.Sleep(5 * time.Second)</code> just before <code>writeJSON</code>. Send two requests at once to different tasks. Why is the second one delayed, and does the refactored version have the same problem?</li>
+<li>Add the status <code>blocked</code> to the lifecycle. How many places in the code and tests must change? What does that number tell you about where the lifecycle knowledge lives?</li>
+<li>Add a <code>GET /tasks/{id}/history</code> endpoint design to a page of notes, without implementing it. Which of the four handler jobs does it need, and what would the application layer have to provide?</li>
+<li>A client sends the same <code>{"to":"running"}</code> request twice because the first response was lost. Write down what the client observes and what it should do. Is the 409 the right answer for the second request? What would an idempotent design return instead?</li>
+</ol>
+<p>Chapter 7 gives Forge a proper router and middleware. Request IDs, recovery from panics, and structured request logging all arrive there, along with JSON error bodies for the router&rsquo;s own 404 and 405 responses, closing the last gap in our error contract.</p>
+    <nav class="pager" aria-label="Chapter"><a href="/read/http-without-the-magic/">← Chapter 5</a><a href="/read/routing-and-middleware/">Chapter 7 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 6: Building Handlers,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/building-handlers/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-new-requirement">The New Requirement</a></li><li><a href="#the-first-version">The First Version</a></li><li><a href="#reading-the-problem">Reading the Problem</a></li><li><a href="#the-shape-of-a-good-handler">The Shape of a Good Handler</a></li><li><a href="#the-refactor">The Refactor</a></li><li><a href="#testing-what-we-extracted">Testing What We Extracted</a></li><li><a href="#what-the-refactor-cost">What the Refactor Cost</a></li><li><a href="#what-is-still-wrong">What Is Still Wrong</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

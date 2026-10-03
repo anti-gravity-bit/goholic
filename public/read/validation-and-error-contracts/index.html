@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chapter 8: Validation and Error Contracts · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/validation-and-error-contracts/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 8: Validation and Error Contracts · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.">
+<meta property="og:url" content="https://goholic.in/read/validation-and-error-contracts/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 8: Validation and Error Contracts · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 8: Validation and Error Contracts", "headline": "Chapter 8: Validation and Error Contracts", "url": "https://goholic.in/read/validation-and-error-contracts/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-04", "inLanguage": "en", "description": "One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.", "position": 9, "wordCount": 3418, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 8: Validation and Error Contracts", "item": "https://goholic.in/read/validation-and-error-contracts/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part II · HTTP and API Engineering · Chapter 8</p>
+    <h1>Chapter 8: Validation and Error Contracts</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 15 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>When a request goes wrong, the response is the only conversation the client will ever have with your system. A good error response lets a program decide what to do next and lets a person understand what happened. A bad one forces the client to guess, and clients that guess usually guess by parsing text.</p>
+<p>The errors in Forge today are functional and consistent in shape. They are also quietly inadequate, and this chapter shows why and fixes it.</p>
+<h2 id="the-problem-made-visible">The Problem, Made Visible</h2>
+<p>Send a request that is wrong in an interesting way:</p>
+<pre><code>$ curl -s -X POST localhost:8080/tasks \
+    -H 'Content-Type: application/json' \
+    -d '{&quot;titel&quot;:&quot;Write chapter one&quot;}'
+{&quot;error&quot;:{&quot;code&quot;:&quot;INVALID_ARGUMENT&quot;,&quot;message&quot;:&quot;request body must be valid JSON with known fields&quot;}}
+</code></pre>
+<p>The response says the request is wrong. It does not say <em>which field</em>, so a developer must read the message and work out that <code>titel</code> is the problem. A form in a web client cannot highlight the field that needs attention, because there is nothing machine-readable to attach the error to.</p>
+<p>Now imagine the client author who wants to show a friendly message when the title is missing. The only thing available is the <code>message</code> string, so the code ends up as <code>if (error.message.includes("title"))</code>. It works until someone improves the wording, at which point the client silently breaks. A message written for humans has become part of the contract, and no one chose that.</p>
+<p>Three weaknesses are behind this.</p>
+<table>
+<thead>
+<tr>
+<th>Weakness</th>
+<th>Consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Errors do not identify which field is at fault</td>
+<td>Clients cannot attach errors to inputs</td>
+</tr>
+<tr>
+<td>The <code>message</code> is the only structured signal</td>
+<td>Clients parse prose, and rewording becomes a breaking change</td>
+</tr>
+<tr>
+<td>Errors are produced in two different styles</td>
+<td>Handlers that write errors and helpers that return them have to be kept consistent by hand</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a-taxonomy-of-failure">A Taxonomy of Failure</h2>
+<p>Before designing a response, classify what can go wrong. Every error a backend produces falls into one of five categories, and the category decides almost everything about how it should be handled.</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Forge example</th>
+<th>Whose fault</th>
+<th>Typical status</th>
+<th>Client should retry?</th>
+<th>How we record it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Validation</td>
+<td>Title missing or too long</td>
+<td>The caller</td>
+<td>400</td>
+<td>No, fix the request</td>
+<td>Access log only</td>
+</tr>
+<tr>
+<td>Domain</td>
+<td>Transition not allowed, task not found</td>
+<td>The request vs. current state</td>
+<td>404, 409</td>
+<td>Only after the state changes</td>
+<td>Access log only</td>
+</tr>
+<tr>
+<td>Dependency</td>
+<td>The database times out, a payment API returns an error</td>
+<td>An external system</td>
+<td>503 or 504</td>
+<td>Yes, with backoff</td>
+<td>Warning with the cause</td>
+</tr>
+<tr>
+<td>Infrastructure</td>
+<td>Out of file descriptors, connection pool exhausted</td>
+<td>Our own environment</td>
+<td>500 or 503</td>
+<td>Possibly</td>
+<td>Error, and an alert</td>
+</tr>
+<tr>
+<td>Unexpected</td>
+<td>A nil pointer dereference, a panic</td>
+<td>Us, a bug</td>
+<td>500</td>
+<td>No, it will fail again</td>
+<td>Error with stack trace, and a page</td>
+</tr>
+</tbody>
+</table>
+<p>Forge has so far produced only the first two kinds and the last. The in-memory store cannot time out or run out of connections. Part III introduces a real database, and with it the dependency and infrastructure categories. The model has to exist before they arrive, so that the first database timeout lands in a prepared place instead of falling into a generic 500.</p>
+<p>The distinction between the two middle categories is subtle. A dependency failure is a system we <em>call</em> failing or being slow. An infrastructure failure is the platform we <em>run on</em> failing. Both are usually temporary, which makes them candidates for retries, and both are invisible to the client except as a status code.</p>
+<p>Two principles follow from the table.</p>
+<p><strong>The client and the operator are different audiences.</strong> The client needs to know whether to fix the request, wait, or give up. The operator needs the full cause. A response that says <code>connection refused to 10.0.0.5:5432</code> helps an attacker and confuses a client, while a log line that says only <code>internal error</code> helps nobody. Each audience gets its own version of the truth.</p>
+<p><strong>Only the unexpected deserve alarm.</strong> Validation and domain errors are the system working correctly. Logging each one as an error trains the on-call engineer to ignore the error log. Reserve loud signals for what no one planned for.</p>
+<h2 id="designing-the-contract">Designing the Contract</h2>
+<p>Here is the response shape we adopt for every error, from every endpoint and every layer.</p>
+<pre><code class="language-json">{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;INVALID_ARGUMENT&quot;,
+    &quot;message&quot;: &quot;request validation failed&quot;,
+    &quot;details&quot;: [
+      {
+        &quot;field&quot;: &quot;title&quot;,
+        &quot;code&quot;: &quot;REQUIRED&quot;,
+        &quot;message&quot;: &quot;title is required&quot;
+      }
+    ],
+    &quot;request_id&quot;: &quot;b41f6a0c9d3e7a52&quot;
+  }
+}
+</code></pre>
+<p>Each field makes a different promise to the client.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Promise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td>Stable and machine-readable. Clients may branch on it. Existing codes are never renamed or reused for a different meaning</td>
+</tr>
+<tr>
+<td><code>message</code></td>
+<td>For humans. May be reworded at any time. Clients must never parse it</td>
+</tr>
+<tr>
+<td><code>details</code></td>
+<td>Optional. Present for validation failures, one entry per problem, each with its own stable <code>code</code></td>
+</tr>
+<tr>
+<td><code>request_id</code></td>
+<td>Always present. The value to quote when asking for help, matching the <code>X-Request-ID</code> header and the server&rsquo;s logs</td>
+</tr>
+</tbody>
+</table>
+<p>The central design choice is the separation of <code>code</code> from <code>message</code>. Programs read the first, people read the second, and neither is allowed to depend on the other. This also settles an ongoing question: it is safe to add a new code, because clients treat unknown codes as a generic failure of the right category, but removing or renaming a code breaks them.</p>
+<p>The HTTP status and the error code work together. The status gives the category, so generic infrastructure such as proxies and retry logic can act on it. The code gives the specific reason, so applications can act on it.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INVALID_ARGUMENT</code></td>
+<td>400</td>
+<td>The request is malformed or fails validation, with <code>details</code></td>
+</tr>
+<tr>
+<td><code>UNSUPPORTED_MEDIA_TYPE</code></td>
+<td>415</td>
+<td>The body is not JSON</td>
+</tr>
+<tr>
+<td><code>PAYLOAD_TOO_LARGE</code></td>
+<td>413</td>
+<td>The body exceeds the size limit</td>
+</tr>
+<tr>
+<td><code>NOT_FOUND</code></td>
+<td>404</td>
+<td>The task or route does not exist</td>
+</tr>
+<tr>
+<td><code>METHOD_NOT_ALLOWED</code></td>
+<td>405</td>
+<td>The path exists but not for this method</td>
+</tr>
+<tr>
+<td><code>INVALID_TRANSITION</code></td>
+<td>409</td>
+<td>The status change is not allowed from the current state</td>
+</tr>
+<tr>
+<td><code>INTERNAL</code></td>
+<td>500</td>
+<td>An unexpected failure, with no detail exposed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="an-error-type-that-knows-its-own-response">An Error Type That Knows Its Own Response</h2>
+<p>The design needs a Go type that carries everything a response needs. We create <code>errors.go</code>:</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;errors&quot;
+    &quot;log/slog&quot;
+    &quot;net/http&quot;
+)
+
+type FieldError struct {
+    Field   string `json:&quot;field&quot;`
+    Code    string `json:&quot;code&quot;`
+    Message string `json:&quot;message&quot;`
+}
+
+type APIError struct {
+    Status    int          `json:&quot;-&quot;`
+    Code      string       `json:&quot;code&quot;`
+    Message   string       `json:&quot;message&quot;`
+    Details   []FieldError `json:&quot;details,omitempty&quot;`
+    RequestID string       `json:&quot;request_id,omitempty&quot;`
+
+    cause error
+}
+
+func (e *APIError) Error() string { return e.Code + &quot;: &quot; + e.Message }
+func (e *APIError) Unwrap() error { return e.cause }
+
+func invalidArgument(message string, details ...FieldError) *APIError {
+    return &amp;APIError{Status: http.StatusBadRequest, Code: &quot;INVALID_ARGUMENT&quot;, Message: message, Details: details}
+}
+
+func notFound(message string) *APIError {
+    return &amp;APIError{Status: http.StatusNotFound, Code: &quot;NOT_FOUND&quot;, Message: message}
+}
+
+func conflict(code, message string) *APIError {
+    return &amp;APIError{Status: http.StatusConflict, Code: code, Message: message}
+}
+
+func internalError(cause error) *APIError {
+    return &amp;APIError{Status: http.StatusInternalServerError, Code: &quot;INTERNAL&quot;, Message: &quot;internal error&quot;, cause: cause}
+}
+</code></pre>
+<p>Three details deserve attention. The <code>Status</code> field is tagged <code>json:"-"</code> so it controls the HTTP status line but never appears in the body. The <code>cause</code> field is unexported, so it can carry the real underlying error to the logs without any possibility of being serialized to the client. And <code>Unwrap</code> lets <code>errors.Is</code> and <code>errors.As</code> see through an <code>APIError</code> to the cause beneath it, which keeps the whole chain inspectable.</p>
+<h2 id="one-place-where-errors-become-responses">One Place Where Errors Become Responses</h2>
+<p>The two styles have to become one. We make a single rule: <strong>handlers return errors, and exactly one function turns an error into a response.</strong> Handlers no longer write error responses at all.</p>
+<p>First, the translation point. Domain errors from the store become API errors here, at the boundary, exactly as Chapter 2 prescribed.</p>
+<pre><code class="language-go">func toAPIError(err error) *APIError {
+    var apiErr *APIError
+    var transitionErr *TransitionError
+
+    switch {
+    case errors.As(err, &amp;apiErr):
+        return apiErr
+    case errors.Is(err, ErrNotFound):
+        return notFound(&quot;task not found&quot;)
+    case errors.As(err, &amp;transitionErr):
+        return conflict(&quot;INVALID_TRANSITION&quot;, transitionErr.Error())
+    default:
+        return internalError(err)
+    }
+}
+</code></pre>
+<p>The <code>default</code> branch is the safety net. Anything not recognized becomes an <code>INTERNAL</code> error with the original attached as its private cause, so a bug can never leak its own text to a client. Then the function that writes the response:</p>
+<pre><code class="language-go">type errorBody struct {
+    Error *APIError `json:&quot;error&quot;`
+}
+
+func writeAPIError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {
+    out := *toAPIError(err)
+    out.RequestID = requestIDFromContext(r.Context())
+
+    if out.cause != nil {
+        logger.ErrorContext(r.Context(), &quot;request failed&quot;,
+            slog.String(&quot;request_id&quot;, out.RequestID),
+            slog.String(&quot;code&quot;, out.Code),
+            slog.Any(&quot;error&quot;, out.cause),
+        )
+    }
+
+    writeJSON(w, out.Status, errorBody{Error: &amp;out})
+}
+</code></pre>
+<p>It copies the error before attaching the request ID, so a shared error value is never mutated by concurrent requests. It logs only when there is a private cause, which matches the taxonomy: validation and domain errors have no cause and need no log line, while unexpected ones always do.</p>
+<p>Finally, an adapter lets handlers return an error. A handler that returns <code>error</code> cannot forget to stop, because stopping and failing are the same statement.</p>
+<pre><code class="language-go">type handlerFunc func(w http.ResponseWriter, r *http.Request) error
+
+func (s *Server) handle(h handlerFunc) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        if err := h(w, r); err != nil {
+            writeAPIError(w, r, s.logger, err)
+        }
+    }
+}
+</code></pre>
+<p>This also removes a whole class of bug. In Chapter 6 we noted that forgetting a <code>return</code> after writing an error corrupts the response. Now the pattern is <code>return invalidArgument(...)</code>, and there is no separate write step to forget.</p>
+<h2 id="validation-that-reports-everything">Validation That Reports Everything</h2>
+<p>Validation should report every problem it can find, not just the first. A client that has to fix errors one at a time, resubmitting after each, is a client that has been badly served. We change <code>validateTitle</code> in <code>task.go</code> to describe a problem as a <code>FieldError</code>, and the file no longer needs its <code>errors</code> import.</p>
+<pre><code class="language-go">func validateTitle(title string) *FieldError {
+    if title == &quot;&quot; {
+        return &amp;FieldError{Field: &quot;title&quot;, Code: &quot;REQUIRED&quot;, Message: &quot;title is required&quot;}
+    }
+    if utf8.RuneCountInString(title) &gt; maxTitleLength {
+        return &amp;FieldError{
+            Field:   &quot;title&quot;,
+            Code:    &quot;TOO_LONG&quot;,
+            Message: fmt.Sprintf(&quot;title must be at most %d characters&quot;, maxTitleLength),
+        }
+    }
+    return nil
+}
+</code></pre>
+<p>The field-level <code>code</code> values are as stable as the top-level ones. <code>REQUIRED</code> and <code>TOO_LONG</code> are things a client can map to its own wording, in its own language, which the server&rsquo;s <code>message</code> could never do.</p>
+<p>Decoding problems get the same treatment. Instead of one catch-all message, each failure mode is classified, and where the JSON library tells us which field is involved, we pass that on.</p>
+<pre><code class="language-go">func decodeError(err error) *APIError {
+    var (
+        maxBytesErr *http.MaxBytesError
+        syntaxErr   *json.SyntaxError
+        typeErr     *json.UnmarshalTypeError
+    )
+
+    switch {
+    case errors.As(err, &amp;maxBytesErr):
+        return &amp;APIError{
+            Status:  http.StatusRequestEntityTooLarge,
+            Code:    &quot;PAYLOAD_TOO_LARGE&quot;,
+            Message: fmt.Sprintf(&quot;request body must be at most %d bytes&quot;, maxBodyBytes),
+        }
+    case errors.Is(err, io.EOF):
+        return invalidArgument(&quot;request body is required&quot;)
+    case errors.As(err, &amp;syntaxErr), errors.Is(err, io.ErrUnexpectedEOF):
+        return invalidArgument(&quot;request body is not valid JSON&quot;)
+    case errors.As(err, &amp;typeErr):
+        return invalidArgument(&quot;request body has a field of the wrong type&quot;, FieldError{
+            Field:   typeErr.Field,
+            Code:    &quot;INVALID_TYPE&quot;,
+            Message: fmt.Sprintf(&quot;%s must be of type %s&quot;, typeErr.Field, typeErr.Type),
+        })
+    }
+
+    if rest, ok := strings.CutPrefix(err.Error(), &quot;json: unknown field &quot;); ok {
+        if name, uerr := strconv.Unquote(rest); uerr == nil {
+            return invalidArgument(&quot;request body contains an unknown field&quot;, FieldError{
+                Field:   name,
+                Code:    &quot;UNKNOWN_FIELD&quot;,
+                Message: fmt.Sprintf(&quot;%s is not a known field&quot;, name),
+            })
+        }
+    }
+
+    return invalidArgument(&quot;request body is not valid JSON&quot;)
+}
+</code></pre>
+<p>The unknown-field branch deserves a candid comment. Go&rsquo;s JSON decoder reports an unknown field only as an error <em>message</em>, with no dedicated type, so extracting the name means parsing text. That is exactly the fragility we warned clients against, and here it is our own code doing it. The honest response is to contain the risk: the parse is confined to one function, it falls through to a safe generic answer if the format ever changes, and a test pins the behavior so a new Go release that rewords the message fails our build instead of quietly degrading our responses. Depending on something fragile is sometimes unavoidable. Depending on it <em>invisibly</em> is the real mistake.</p>
+<p>The decoding helper now returns an <code>error</code> instead of writing a response and returning a boolean:</p>
+<pre><code class="language-go">func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+    mediaType, _, err := mime.ParseMediaType(r.Header.Get(&quot;Content-Type&quot;))
+    if err != nil || mediaType != &quot;application/json&quot; {
+        return &amp;APIError{
+            Status:  http.StatusUnsupportedMediaType,
+            Code:    &quot;UNSUPPORTED_MEDIA_TYPE&quot;,
+            Message: &quot;Content-Type must be application/json&quot;,
+        }
+    }
+
+    r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+    dec := json.NewDecoder(r.Body)
+    dec.DisallowUnknownFields()
+
+    if err := dec.Decode(dst); err != nil {
+        return decodeError(err)
+    }
+    if err := dec.Decode(&amp;struct{}{}); !errors.Is(err, io.EOF) {
+        return invalidArgument(&quot;request body must contain a single JSON value&quot;)
+    }
+    return nil
+}
+</code></pre>
+<p>Note the final <code>return nil</code>, and that no path returns a possibly-nil <code>*APIError</code> through the <code>error</code> return. That is deliberate, and it avoids one of Go&rsquo;s best-known traps: a nil <code>*APIError</code> stored in an <code>error</code> variable is <em>not</em> equal to <code>nil</code>, because the interface still holds a type. A function returning <code>error</code> must return the literal <code>nil</code> for success.</p>
+<h2 id="the-handlers-simplified-again">The Handlers, Simplified Again</h2>
+<p>With all of that in place, each handler reduces to its four jobs, and the failure path is one statement.</p>
+<pre><code class="language-go">func (s *Server) createTask(w http.ResponseWriter, r *http.Request) error {
+    var req createTaskRequest
+    if err := decodeJSON(w, r, &amp;req); err != nil {
+        return err
+    }
+
+    title := strings.TrimSpace(req.Title)
+    if problem := validateTitle(title); problem != nil {
+        return invalidArgument(&quot;request validation failed&quot;, *problem)
+    }
+
+    task, err := s.store.Create(title)
+    if err != nil {
+        return err
+    }
+
+    w.Header().Set(&quot;Location&quot;, &quot;/tasks/&quot;+task.ID)
+    writeJSON(w, http.StatusCreated, task)
+    return nil
+}
+
+func (s *Server) getTask(w http.ResponseWriter, r *http.Request) error {
+    task, err := s.store.Get(r.PathValue(&quot;id&quot;))
+    if err != nil {
+        return err
+    }
+
+    writeJSON(w, http.StatusOK, task)
+    return nil
+}
+
+func (s *Server) transitionTask(w http.ResponseWriter, r *http.Request) error {
+    var req transitionRequest
+    if err := decodeJSON(w, r, &amp;req); err != nil {
+        return err
+    }
+    if !req.To.Valid() {
+        return invalidArgument(&quot;request validation failed&quot;, FieldError{
+            Field:   &quot;to&quot;,
+            Code:    &quot;INVALID_VALUE&quot;,
+            Message: &quot;to must be a valid status&quot;,
+        })
+    }
+
+    task, err := s.store.Transition(r.PathValue(&quot;id&quot;), req.To)
+    if err != nil {
+        return err
+    }
+
+    writeJSON(w, http.StatusOK, task)
+    return nil
+}
+</code></pre>
+<p><code>listTasks</code> and <code>health</code> change in the same mechanical way: they gain an <code>error</code> return and end with <code>return nil</code>. The routes are registered through the adapter:</p>
+<pre><code class="language-go">mux.HandleFunc(&quot;GET /health&quot;, s.handle(s.health))
+mux.HandleFunc(&quot;POST /tasks&quot;, s.handle(s.createTask))
+mux.HandleFunc(&quot;GET /tasks&quot;, s.handle(s.listTasks))
+mux.HandleFunc(&quot;GET /tasks/{id}&quot;, s.handle(s.getTask))
+mux.HandleFunc(&quot;POST /tasks/{id}/transition&quot;, s.handle(s.transitionTask))
+</code></pre>
+<p>The old <code>writeError</code> function, the <code>errorDetail</code> type, and <code>handleError</code> are all deleted. The two remaining places that wrote errors by hand, the recovery middleware and the router wrapper, move to the shared path. Recovery already logs the panic and its stack, so it passes an error with no private cause, which avoids a duplicate log line:</p>
+<pre><code class="language-go">writeAPIError(w, r, logger, internalError(nil))
+</code></pre>
+<p>And the router wrapper builds its two errors as API errors, which also gives them request IDs:</p>
+<pre><code class="language-go">case http.StatusMethodNotAllowed:
+    if allow := probe.header.Get(&quot;Allow&quot;); allow != &quot;&quot; {
+        w.Header().Set(&quot;Allow&quot;, allow)
+    }
+    writeAPIError(w, r, logger, &amp;APIError{
+        Status:  http.StatusMethodNotAllowed,
+        Code:    &quot;METHOD_NOT_ALLOWED&quot;,
+        Message: &quot;method not allowed for this path&quot;,
+    })
+case http.StatusNotFound:
+    writeAPIError(w, r, logger, notFound(&quot;route not found&quot;))
+</code></pre>
+<p><code>routerErrors</code> now takes the logger as a second parameter, and <code>routes()</code> passes <code>s.logger</code> to it.</p>
+<h2 id="testing-the-contract">Testing the Contract</h2>
+<p>The test suite should state the contract directly. The first table checks the shape of validation errors, including which field each one points to.</p>
+<pre><code class="language-go">type testErrorBody struct {
+    Error APIError `json:&quot;error&quot;`
+}
+
+func TestValidationErrorsNameTheirField(t *testing.T) {
+    h := newTestHandler()
+    const jsonType = &quot;application/json&quot;
+
+    tests := []struct {
+        name      string
+        body      string
+        wantField string
+        wantCode  string
+    }{
+        {&quot;missing title&quot;, `{}`, &quot;title&quot;, &quot;REQUIRED&quot;},
+        {&quot;title too long&quot;, `{&quot;title&quot;:&quot;` + strings.Repeat(&quot;a&quot;, 201) + `&quot;}`, &quot;title&quot;, &quot;TOO_LONG&quot;},
+        {&quot;wrong type&quot;, `{&quot;title&quot;:123}`, &quot;title&quot;, &quot;INVALID_TYPE&quot;},
+        {&quot;unknown field&quot;, `{&quot;title&quot;:&quot;x&quot;,&quot;colour&quot;:&quot;red&quot;}`, &quot;colour&quot;, &quot;UNKNOWN_FIELD&quot;},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            rec := send(h, http.MethodPost, &quot;/tasks&quot;, jsonType, tt.body)
+            if rec.Code != http.StatusBadRequest {
+                t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, http.StatusBadRequest)
+            }
+
+            var body testErrorBody
+            if err := json.NewDecoder(rec.Body).Decode(&amp;body); err != nil {
+                t.Fatalf(&quot;decode: %v&quot;, err)
+            }
+            if body.Error.Code != &quot;INVALID_ARGUMENT&quot; {
+                t.Fatalf(&quot;code = %q, want INVALID_ARGUMENT&quot;, body.Error.Code)
+            }
+            if len(body.Error.Details) != 1 {
+                t.Fatalf(&quot;details = %d entries, want 1&quot;, len(body.Error.Details))
+            }
+            got := body.Error.Details[0]
+            if got.Field != tt.wantField || got.Code != tt.wantCode {
+                t.Fatalf(&quot;detail = {%s %s}, want {%s %s}&quot;, got.Field, got.Code, tt.wantField, tt.wantCode)
+            }
+        })
+    }
+}
+</code></pre>
+<p>The <code>unknown field</code> row is the test that pins our dependence on the library&rsquo;s message, as promised above. The next test enforces the two-audience principle directly: an unexpected error carrying sensitive text must never reach the client, and the response must still carry the request ID.</p>
+<pre><code class="language-go">func TestInternalErrorsDoNotLeakDetails(t *testing.T) {
+    logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+    srv := NewServer(NewStore(), logger)
+
+    failing := srv.handle(func(w http.ResponseWriter, r *http.Request) error {
+        return errors.New(&quot;dial tcp 10.0.0.5:5432: connection refused&quot;)
+    })
+    h := chain(failing, requestID)
+
+    rec := httptest.NewRecorder()
+    h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, &quot;/&quot;, nil))
+
+    if rec.Code != http.StatusInternalServerError {
+        t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, http.StatusInternalServerError)
+    }
+    if strings.Contains(rec.Body.String(), &quot;10.0.0.5&quot;) {
+        t.Fatal(&quot;internal error details leaked to the client&quot;)
+    }
+
+    var body testErrorBody
+    if err := json.NewDecoder(rec.Body).Decode(&amp;body); err != nil {
+        t.Fatalf(&quot;decode: %v&quot;, err)
+    }
+    if body.Error.Code != &quot;INTERNAL&quot; {
+        t.Fatalf(&quot;code = %q, want INTERNAL&quot;, body.Error.Code)
+    }
+    if body.Error.RequestID == &quot;&quot; || body.Error.RequestID != rec.Header().Get(&quot;X-Request-ID&quot;) {
+        t.Fatalf(&quot;request_id = %q, header = %q&quot;, body.Error.RequestID, rec.Header().Get(&quot;X-Request-ID&quot;))
+    }
+}
+</code></pre>
+<p>Notice that <code>strings.Contains</code> is run before the body is decoded. Reading <code>rec.Body.String()</code> does not consume the buffer, so the decode afterward still works.</p>
+<h2 id="what-the-refactor-cost">What the Refactor Cost</h2>
+<table>
+<thead>
+<tr>
+<th>What we gained</th>
+<th>What we sacrificed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Clients can attach errors to fields and branch on stable codes</td>
+<td>A larger response, and a contract we are now committed to keeping</td>
+</tr>
+<tr>
+<td>One path from error to response, with no forgotten <code>return</code></td>
+<td>Handlers no longer control their own error output, which can surprise newcomers</td>
+</tr>
+<tr>
+<td>Private causes reach the logs and never the client</td>
+<td>Two parallel descriptions of every failure, one public and one private</td>
+</tr>
+<tr>
+<td>Domain errors translated in exactly one place</td>
+<td>A growing <code>switch</code> that every new error type must be added to</td>
+</tr>
+</tbody>
+</table>
+<p>The last row is a real cost and a real benefit at once. The <code>switch</code> in <code>toAPIError</code> is the single place that knows how every domain error appears to the outside world, which makes the contract auditable. It also means every new kind of failure must be registered there, and an error that is not registered becomes a 500, which is the safe default.</p>
+<h2 id="what-is-still-wrong">What Is Still Wrong</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Where it is fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No authentication or authorization, so 401 and 403 do not exist yet</td>
+<td>Chapter 9</td>
+</tr>
+<tr>
+<td>Dependency and infrastructure errors are modeled but not yet produced</td>
+<td>Part III</td>
+</tr>
+<tr>
+<td>Clients retrying 503 have no <code>Retry-After</code> guidance</td>
+<td>Chapter 31</td>
+</tr>
+<tr>
+<td>The error code catalog exists only in this chapter</td>
+<td>Chapter 10</td>
+</tr>
+</tbody>
+</table>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We gave every failure a category, a stable machine-readable code, field-level detail where it applies, and a request ID, and we routed all of it through one place so it cannot drift.</p>
+<p><strong>What complexity did we introduce?</strong> A custom error type, a translation function that grows with the domain, and the discipline of treating the error catalog as a public contract.</p>
+<p><strong>What failure modes appeared?</strong> Clients parsing messages, internal text leaking to callers, fragile parsing of library error text, the typed-nil trap, and error logs so noisy that real problems are ignored.</p>
+<p><strong>What would break at 10× scale?</strong> The log volume from unexpected errors during an incident. When a dependency fails, thousands of requests produce thousands of identical <code>request failed</code> lines at once, which is the moment rate limiting and log sampling earn their keep.</p>
+<p><strong>When should we not build this much?</strong> For an internal tool with a single known client, plain status codes and messages are enough. A formal error contract pays for itself when clients are independent, numerous, or built by people you will never meet.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Add an <code>ErrUnavailable</code> error to the store, as if a dependency had failed. Map it in <code>toAPIError</code> to a 503 with code <code>UNAVAILABLE</code> and a <code>Retry-After: 1</code> header. Where does the header get set, given that <code>APIError</code> currently carries no headers?</li>
+<li>Add an optional <code>description</code> field, at most 1000 characters, to task creation. Change validation to return <em>all</em> problems at once, then send a body that violates both the title and description rules and confirm both appear in <code>details</code>.</li>
+<li>Choose a public API you use and read its error documentation. Classify each error it can return using the five categories in this chapter. Which category is least well handled?</li>
+<li>A future Go release rewords the unknown-field message. Which test fails, and what does the response to a client degrade into in the meantime? Is that acceptable?</li>
+<li>Write a small function that returns <code>(*APIError)(nil)</code> as an <code>error</code>, then print whether the result equals <code>nil</code>. Explain what you observe in terms of how an interface value is stored.</li>
+</ol>
+<p>Chapter 9 puts a lock on the front door. We add users, passwords, and tokens, introduce the 401 and 403 categories, and use the middleware and error contract we have just built to make authentication a layer rather than a rewrite.</p>
+    <nav class="pager" aria-label="Chapter"><a href="/read/routing-and-middleware/">← Chapter 7</a><a href="/read/authentication-and-authorization/">Chapter 9 →</a></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 8: Validation and Error Contracts,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/validation-and-error-contracts/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#the-problem-made-visible">The Problem, Made Visible</a></li><li><a href="#a-taxonomy-of-failure">A Taxonomy of Failure</a></li><li><a href="#designing-the-contract">Designing the Contract</a></li><li><a href="#an-error-type-that-knows-its-own-response">An Error Type That Knows Its Own Response</a></li><li><a href="#one-place-where-errors-become-responses">One Place Where Errors Become Responses</a></li><li><a href="#validation-that-reports-everything">Validation That Reports Everything</a></li><li><a href="#the-handlers-simplified-again">The Handlers, Simplified Again</a></li><li><a href="#testing-the-contract">Testing the Contract</a></li><li><a href="#what-the-refactor-cost">What the Refactor Cost</a></li><li><a href="#what-is-still-wrong">What Is Still Wrong</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

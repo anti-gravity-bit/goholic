@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chapter 10: API Design That Survives Change · Defer Nothing · Abir Sarkar</title>
+<meta name="description" content="Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.">
+<meta name="author" content="Abir Sarkar">
+<link rel="canonical" href="https://goholic.in/read/api-design-that-survives-change/">
+<meta name="theme-color" content="#122e24">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:site_name" content="Defer Nothing">
+<meta property="og:title" content="Chapter 10: API Design That Survives Change · Defer Nothing · Abir Sarkar">
+<meta property="og:description" content="Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.">
+<meta property="og:url" content="https://goholic.in/read/api-design-that-survives-change/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://goholic.in/og.png">
+<meta property="og:image:alt" content="Defer Nothing, a book by Abir Sarkar on building backend systems in Go">
+<meta property="og:locale" content="en_IN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Chapter 10: API Design That Survives Change · Defer Nothing · Abir Sarkar">
+<meta name="twitter:description" content="Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.">
+<meta name="twitter:image" content="https://goholic.in/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="Defer Nothing" href="/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Chapter", "name": "Chapter 10: API Design That Survives Change", "headline": "Chapter 10: API Design That Survives Change", "url": "https://goholic.in/read/api-design-that-survives-change/", "isPartOf": {"@id": "https://goholic.in/#book"}, "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "datePublished": "2026-10-03", "dateModified": "2026-10-04", "inLanguage": "en", "description": "Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.", "position": 11, "wordCount": 4780, "isAccessibleForFree": true}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Defer Nothing", "item": "https://goholic.in/"}, {"@type": "ListItem", "position": 2, "name": "Contents", "item": "https://goholic.in/read/"}, {"@type": "ListItem", "position": 3, "name": "Chapter 10: API Design That Survives Change", "item": "https://goholic.in/read/api-design-that-survives-change/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+<header class="site-header">
+  <a class="wordmark" href="/">Defer <span>Nothing</span></a>
+  <nav class="nav" aria-label="Primary">
+    <a href="/read/">Contents</a>
+    <a href="/author/">Author</a>
+    <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a>
+    <button class="theme-btn" id="theme" type="button">Theme</button>
+  </nav>
+</header>
+
+<main id="content" class="shell read-layout">
+  <article>
+    <p class="kicker">Part II · HTTP and API Engineering · Chapter 10</p>
+    <h1>Chapter 10: API Design That Survives Change</h1>
+    <p class="meta">By <a href="/author/">Abir Sarkar</a> · 21 min read · Published 2026-10-03 · <a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a></p>
+    <p>Until now Forge has had no users but us, so every change was free. We renamed things, tightened rules, and broke the contract whenever the design improved, and the only cost was updating our own tests. That luxury ends the day someone else writes code against the API. From that moment, every decision becomes a promise, and promises are expensive to break.</p>
+<p>This chapter is about making the promises you can keep, and about the small number of changes that are still cheap <em>now</em>. Forge has no outside clients yet, which makes this the last moment those changes cost almost nothing. We will use it.</p>
+<h2 id="why-apis-are-hard-to-change">Why APIs Are Hard to Change</h2>
+<p>An API has two kinds of readers: the clients that call it and the people who write them. You can control the code you ship. You cannot control the code written against it, and you often cannot even find it. There is a well-known observation that with enough users, <em>every observable behavior of your system will be depended on by somebody</em>, including behavior you never meant to promise. A response that happened to be sorted, a field that happened to be present, an error message that happened to contain a word: all of them become contract by use.</p>
+<p>The practical response is to decide deliberately which behaviors are promises, document them, and change everything else freely.</p>
+<h2 id="what-counts-as-a-breaking-change">What Counts as a Breaking Change</h2>
+<p>Not every change breaks clients. The table sorts the common ones.</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Safe for existing clients?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Add an optional request field</td>
+<td>Yes</td>
+<td>Old clients simply do not send it</td>
+</tr>
+<tr>
+<td>Add a field to a response</td>
+<td>Usually</td>
+<td>Safe only if clients ignore fields they do not know</td>
+</tr>
+<tr>
+<td>Add a new endpoint</td>
+<td>Yes</td>
+<td></td>
+</tr>
+<tr>
+<td>Add a new value to a response enum, such as a new task status</td>
+<td>Risky</td>
+<td>Clients that switch over the values may break</td>
+</tr>
+<tr>
+<td>Add a required request field</td>
+<td>No</td>
+<td>Existing requests become invalid</td>
+</tr>
+<tr>
+<td>Rename or remove a field</td>
+<td>No</td>
+<td></td>
+</tr>
+<tr>
+<td>Change a field&rsquo;s type or format</td>
+<td>No</td>
+<td></td>
+</tr>
+<tr>
+<td>Tighten validation</td>
+<td>No</td>
+<td>Chapter 5&rsquo;s <code>Content-Type</code> change broke every curl command</td>
+</tr>
+<tr>
+<td>Loosen validation</td>
+<td>Usually</td>
+<td></td>
+</tr>
+<tr>
+<td>Change a default page size or ordering</td>
+<td>No, in practice</td>
+<td>Someone depends on it</td>
+</tr>
+<tr>
+<td>Change an error <code>code</code> or the status for a situation</td>
+<td>No</td>
+<td>Clients branch on them</td>
+</tr>
+</tbody>
+</table>
+<p>The second row hides an obligation. Forge is <em>strict</em> about requests: it rejects unknown fields. But for responses, clients must be <em>tolerant</em>: they must ignore fields they do not recognize. The two rules are complementary, and the API documentation has to state the second one explicitly, because without it we could never add a response field safely.</p>
+<h2 id="naming-and-resource-modeling">Naming and Resource Modeling</h2>
+<p>Conventions look trivial and matter enormously, because inconsistency forces every client to special-case. Forge adopts these, and every endpoint obeys all of them.</p>
+<table>
+<thead>
+<tr>
+<th>Convention</th>
+<th>Rule</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resources</td>
+<td>Plural nouns</td>
+<td><code>/tasks</code>, <code>/users</code></td>
+</tr>
+<tr>
+<td>Identifiers</td>
+<td>Opaque strings with a type prefix</td>
+<td><code>tsk_8f3a1c9d2b47</code></td>
+</tr>
+<tr>
+<td>JSON fields</td>
+<td><code>lower_snake_case</code></td>
+<td><code>created_at</code>, <code>owner_id</code></td>
+</tr>
+<tr>
+<td>Timestamps</td>
+<td>RFC 3339, always UTC</td>
+<td><code>2026-10-03T09:14:00Z</code></td>
+</tr>
+<tr>
+<td>Enumerations</td>
+<td>Lowercase strings</td>
+<td><code>"pending"</code>, <code>"running"</code></td>
+</tr>
+<tr>
+<td>Nesting</td>
+<td>At most two levels</td>
+<td><code>/tasks/{id}/transition</code></td>
+</tr>
+<tr>
+<td>State changes</td>
+<td>A named action on the resource</td>
+<td><code>POST /tasks/{id}/transition</code></td>
+</tr>
+</tbody>
+</table>
+<p>The last row records a decision from Chapter 6 that deserves its justification. The alternative design, <code>PATCH /tasks/{id}</code> with a <code>status</code> field, treats a status change as an ordinary field edit. But a status change is not an edit. It is a transition governed by rules, with a conflict policy. Giving it its own endpoint keeps the rules visible in the contract and prevents a client from sending a patch that rewrites status along with five unrelated fields.</p>
+<h2 id="pagination-never-return-everything">Pagination: Never Return Everything</h2>
+<p>Chapter 4 flagged <code>GET /tasks</code>: it returns every task, and one million tasks produce a million-element response. Bounded results are not an optimization. They are part of the contract.</p>
+<p>There are two common designs.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Offset pagination</th>
+<th>Cursor pagination</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Request</td>
+<td><code>?offset=40&amp;limit=20</code></td>
+<td><code>?cursor=&lt;opaque&gt;&amp;limit=20</code></td>
+</tr>
+<tr>
+<td>Jump to page N</td>
+<td>Easy</td>
+<td>Not possible</td>
+</tr>
+<tr>
+<td>Stable when rows are added or removed</td>
+<td>No. Items shift, so pages repeat or skip rows</td>
+<td>Yes. The cursor marks a position, not a count</td>
+</tr>
+<tr>
+<td>Cost on a large table</td>
+<td>Grows with the offset, because skipped rows are still read</td>
+<td>Constant, since a cursor seeks directly</td>
+</tr>
+<tr>
+<td>Simplicity</td>
+<td>Very simple</td>
+<td>Slightly more work</td>
+</tr>
+</tbody>
+</table>
+<p>Forge uses <strong>cursors</strong>. Users read task lists from the top and move forward, which is exactly the access pattern cursors serve well, and the stability matters because tasks are being created while people page through them.</p>
+<h3 id="the-cursor-is-a-position">The cursor is a position</h3>
+<p>A cursor records &ldquo;the last item you saw,&rdquo; expressed in the sort order: here, creation time with the ID as a tie-breaker. The next page is everything strictly after that position.</p>
+<pre><code class="language-go">type cursor struct {
+    CreatedAt time.Time `json:&quot;t&quot;`
+    ID        string    `json:&quot;id&quot;`
+}
+
+func encodeCursor(c cursor) (string, error) {
+    b, err := json.Marshal(c)
+    if err != nil {
+        return &quot;&quot;, err
+    }
+    return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func decodeCursor(s string) (cursor, error) {
+    b, err := base64.RawURLEncoding.DecodeString(s)
+    if err != nil {
+        return cursor{}, err
+    }
+    var c cursor
+    if err := json.Unmarshal(b, &amp;c); err != nil {
+        return cursor{}, err
+    }
+    if c.ID == &quot;&quot; || c.CreatedAt.IsZero() {
+        return cursor{}, errors.New(&quot;incomplete cursor&quot;)
+    }
+    return c, nil
+}
+</code></pre>
+<p>The client sees a meaningless string. Opacity is the point: because clients cannot interpret the cursor, we can change what it encodes without breaking anyone. A cursor that exposed <code>?after_id=...</code> would have turned an implementation detail into a promise. The cursor encodes only a <em>position</em>, never anything about permissions, so a tampered cursor can at worst point somewhere else in the caller&rsquo;s own results, because the owner filter is applied separately on the server.</p>
+<h3 id="the-store-and-the-query">The store and the query</h3>
+<p>The store&rsquo;s listing function takes a parameter struct, because the number of options will keep growing.</p>
+<pre><code class="language-go">type ListParams struct {
+    OwnerID string  // empty means every owner
+    Status  Status  // empty means every status
+    After   *cursor // nil means from the start
+    Limit   int
+}
+
+func taskLess(a, b Task) bool {
+    if a.CreatedAt.Equal(b.CreatedAt) {
+        return a.ID &lt; b.ID
+    }
+    return a.CreatedAt.Before(b.CreatedAt)
+}
+
+func taskAfter(t Task, c cursor) bool {
+    if t.CreatedAt.Equal(c.CreatedAt) {
+        return t.ID &gt; c.ID
+    }
+    return t.CreatedAt.After(c.CreatedAt)
+}
+
+func (s *Store) List(p ListParams) ([]Task, bool) {
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+
+    all := make([]Task, 0, len(s.tasks))
+    for _, task := range s.tasks {
+        if p.OwnerID != &quot;&quot; &amp;&amp; task.OwnerID != p.OwnerID {
+            continue
+        }
+        if p.Status != &quot;&quot; &amp;&amp; task.Status != p.Status {
+            continue
+        }
+        if p.After != nil &amp;&amp; !taskAfter(task, *p.After) {
+            continue
+        }
+        all = append(all, task)
+    }
+    sort.Slice(all, func(i, j int) bool { return taskLess(all[i], all[j]) })
+
+    if len(all) &gt; p.Limit {
+        return all[:p.Limit], true
+    }
+    return all, false
+}
+</code></pre>
+<p>The function returns the page and a flag saying whether more results exist. Finding out whether there is a next page without an extra query is a common trick: fetch one more than you need. Here we have everything in memory and simply compare lengths. When the store becomes a database in Part III, this becomes a seek, not a scan:</p>
+<pre><code>SELECT ... WHERE owner_id = $1 AND (created_at, id) &gt; ($2, $3)
+ORDER BY created_at, id LIMIT $4
+</code></pre>
+<p>One honest limitation remains. Keyset pagination is only as stable as its sort key. Breaking ties by ID guarantees pages never repeat or loop, but a row created with a timestamp at or before the cursor&rsquo;s position can be missed, which is possible when two rows share a timestamp and the later one has the smaller random ID. Real systems answer this with a strictly increasing key such as a sequence number, or they accept the edge case. The lesson is general: a pagination scheme is a promise about ordering, and you should know exactly what yours promises.</p>
+<h3 id="parsing-the-query">Parsing the query</h3>
+<p>Query parameters are input like any other, and they get the same validation and the same error contract.</p>
+<pre><code class="language-go">const (
+    defaultPageSize = 20
+    maxPageSize     = 100
+)
+
+type taskPage struct {
+    Items      []Task `json:&quot;items&quot;`
+    NextCursor string `json:&quot;next_cursor,omitempty&quot;`
+}
+
+func parseListParams(r *http.Request, identity Identity) (ListParams, error) {
+    q := r.URL.Query()
+    p := ListParams{Limit: defaultPageSize}
+    var problems []FieldError
+
+    if raw := q.Get(&quot;limit&quot;); raw != &quot;&quot; {
+        n, err := strconv.Atoi(raw)
+        if err != nil || n &lt; 1 || n &gt; maxPageSize {
+            problems = append(problems, FieldError{
+                Field: &quot;limit&quot;, Code: &quot;INVALID_VALUE&quot;,
+                Message: fmt.Sprintf(&quot;limit must be an integer between 1 and %d&quot;, maxPageSize),
+            })
+        } else {
+            p.Limit = n
+        }
+    }
+    if raw := q.Get(&quot;status&quot;); raw != &quot;&quot; {
+        if status := Status(raw); !status.Valid() {
+            problems = append(problems, FieldError{Field: &quot;status&quot;, Code: &quot;INVALID_VALUE&quot;, Message: &quot;status must be a valid status&quot;})
+        } else {
+            p.Status = status
+        }
+    }
+    if raw := q.Get(&quot;cursor&quot;); raw != &quot;&quot; {
+        c, err := decodeCursor(raw)
+        if err != nil {
+            problems = append(problems, FieldError{Field: &quot;cursor&quot;, Code: &quot;INVALID_VALUE&quot;, Message: &quot;cursor is not valid&quot;})
+        } else {
+            p.After = &amp;c
+        }
+    }
+    if len(problems) &gt; 0 {
+        return ListParams{}, invalidArgument(&quot;request validation failed&quot;, problems...)
+    }
+
+    if identity.Role != RoleAdmin {
+        p.OwnerID = identity.UserID
+    }
+    return p, nil
+}
+
+func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) error {
+    identity, err := requireIdentity(r)
+    if err != nil {
+        return err
+    }
+    params, err := parseListParams(r, identity)
+    if err != nil {
+        return err
+    }
+
+    tasks, hasMore := s.store.List(params)
+    page := taskPage{Items: tasks}
+    if hasMore {
+        last := tasks[len(tasks)-1]
+        next, err := encodeCursor(cursor{CreatedAt: last.CreatedAt, ID: last.ID})
+        if err != nil {
+            return err
+        }
+        page.NextCursor = next
+    }
+
+    writeJSON(w, http.StatusOK, page)
+    return nil
+}
+</code></pre>
+<p>Two decisions are visible. The page has a default and a maximum, so a client that asks for nothing gets a sensible answer and a client that asks for everything is refused. And unlike request bodies, unknown query parameters are <em>ignored</em>, because intermediaries and analytics tools routinely append parameters of their own, and rejecting them would break legitimate traffic.</p>
+<h3 id="the-envelope-and-why-we-break-the-contract-now">The envelope, and why we break the contract now</h3>
+<p>Notice the response shape. Chapter 3&rsquo;s contract said <code>GET /tasks</code> returns a list. The new response is an object with <code>items</code> and <code>next_cursor</code>. That is a breaking change, and we make it on purpose.</p>
+<p>A bare JSON array is a design you cannot extend. There is nowhere to put a <code>next_cursor</code>, a total count, or a warning, and adding any of them later would be a breaking change of the same size as the one we are making now. An object can grow forever by adding fields. Because Forge has no outside clients, the change costs us a few test updates. It would cost far more after release. This is the broader lesson of the chapter: <strong>the best time to fix a contract is before anyone depends on it, and the second-best time is never.</strong></p>
+<h3 id="filtering-and-sorting-restrained">Filtering and sorting, restrained</h3>
+<p>We support one filter, <code>status</code>, and one order, creation time ascending. Every option a client can send is a permanent promise, and it multiplies against every other option. Arbitrary sorting, for instance, would require the cursor to encode the sort key, and filtering across pages requires the client to repeat the same filter on every request, because the cursor remembers a position, not a query. Add features when a real client needs them, not because they are cheap to write.</p>
+<h2 id="versioning">Versioning</h2>
+<p>Even with great care, some changes break clients, and a version gives them somewhere to go. The common mechanisms are compared below.</p>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>Example</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Version in the path</td>
+<td><code>/v1/tasks</code></td>
+<td>Obvious, easy to route and to see in logs. Changes URLs</td>
+</tr>
+<tr>
+<td>Version in a header</td>
+<td><code>X-API-Version: 1</code></td>
+<td>Clean URLs, but invisible and easy to forget</td>
+</tr>
+<tr>
+<td>Version in the media type</td>
+<td><code>Accept: application/vnd.forge.v1+json</code></td>
+<td>Principled, awkward in practice</td>
+</tr>
+<tr>
+<td>Version in a query parameter</td>
+<td><code>?version=1</code></td>
+<td>Easy, easily dropped by caches and proxies</td>
+</tr>
+</tbody>
+</table>
+<p>Forge uses the <strong>path</strong>. It is the most visible option, and visibility is what you want from a version. We adopt it now, while it costs a global find-and-replace. Everything the API serves moves under <code>/v1</code>, except <code>/health</code>, which is for infrastructure and not for clients. Every route in <code>routes()</code> gains the prefix, the <code>Location</code> header becomes <code>/v1/tasks/...</code>, and every test path follows. Notice how many places that touches. Had we waited for clients, each of them would have been a place too.</p>
+<p>A version number is not a licence to break things casually. The policy is:</p>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Additive changes stay within a version</td>
+<td>New fields, endpoints, and optional parameters do not require <code>v2</code></td>
+</tr>
+<tr>
+<td>A breaking change creates a new version</td>
+<td><code>v2</code> runs alongside <code>v1</code>, so clients move on their own schedule</td>
+</tr>
+<tr>
+<td>Old versions are retired with notice</td>
+<td>A <code>Sunset</code> header announces the date, and a <code>Deprecation</code> header marks the endpoint</td>
+</tr>
+</tbody>
+</table>
+<h2 id="idempotency-safe-retries">Idempotency: Safe Retries</h2>
+<p>Chapter 5 left a problem open. A client whose request timed out cannot know whether it took effect, so it retries, and <code>POST /tasks</code> creates a duplicate. Chapter 6 found a second symptom: a retried transition returns a 409 even though the first attempt succeeded. Both come from the same gap. The server cannot tell a <em>new request</em> from a <em>repeat of an earlier one</em>.</p>
+<p>The fix is for the client to label its <strong>intent</strong>. The client generates a unique value and sends it as an <code>Idempotency-Key</code> header. If the server sees the same key again, it recognizes the repeat and returns the original result instead of acting twice.</p>
+<p>This is different from the request ID from Chapter 7, and the difference is worth stating precisely.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Request ID</th>
+<th>Idempotency key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Assigned by</td>
+<td>The server (or accepted from a caller)</td>
+<td>The client</td>
+</tr>
+<tr>
+<td>Identifies</td>
+<td>One HTTP attempt</td>
+<td>One intended operation, across all its retries</td>
+</tr>
+<tr>
+<td>Changes on retry</td>
+<td>Yes, each attempt differs</td>
+<td>No, that is the whole point</td>
+</tr>
+<tr>
+<td>Used for</td>
+<td>Debugging and log correlation</td>
+<td>Preventing duplicate effects</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-rules">The rules</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New key</td>
+<td>Process the request and remember a successful result</td>
+</tr>
+<tr>
+<td>Same key, same request, finished</td>
+<td>Replay the stored response, marked <code>Idempotent-Replayed: true</code></td>
+</tr>
+<tr>
+<td>Same key, different request</td>
+<td>409 <code>IDEMPOTENCY_KEY_REUSED</code>, because the client is misusing the key</td>
+</tr>
+<tr>
+<td>Same key, first request still running</td>
+<td>409 <code>IDEMPOTENCY_KEY_IN_PROGRESS</code> with <code>Retry-After</code></td>
+</tr>
+<tr>
+<td>No key</td>
+<td>Behave as before. The header is optional</td>
+</tr>
+</tbody>
+</table>
+<p>Keys are scoped to the authenticated user, so one user&rsquo;s keys can never collide with another&rsquo;s. Only <em>successful</em> responses are stored. Idempotency exists to protect effects, and a failed request had none, so a retry of a failed request should simply run again and produce a fresh answer. A request is &ldquo;the same&rdquo; when its method, URL, and body are identical, which we check with a hash.</p>
+<pre><code class="language-go">package main
+
+import (
+    &quot;bytes&quot;
+    &quot;crypto/sha256&quot;
+    &quot;errors&quot;
+    &quot;io&quot;
+    &quot;log/slog&quot;
+    &quot;net/http&quot;
+    &quot;sync&quot;
+    &quot;time&quot;
+)
+
+type idempotencyResult int
+
+const (
+    idempotencyNew idempotencyResult = iota
+    idempotencyReplay
+    idempotencyMismatch
+    idempotencyInFlight
+)
+
+type idempotencyEntry struct {
+    fingerprint [32]byte
+    done        bool
+    status      int
+    contentType string
+    location    string
+    body        []byte
+    expires     time.Time
+}
+
+type IdempotencyStore struct {
+    mu      sync.Mutex
+    entries map[string]idempotencyEntry
+    ttl     time.Duration
+    now     func() time.Time
+}
+
+func NewIdempotencyStore(ttl time.Duration) *IdempotencyStore {
+    return &amp;IdempotencyStore{entries: make(map[string]idempotencyEntry), ttl: ttl, now: time.Now}
+}
+
+func (s *IdempotencyStore) Begin(id string, fp [32]byte) (idempotencyResult, idempotencyEntry) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    entry, ok := s.entries[id]
+    if ok &amp;&amp; !s.now().Before(entry.expires) {
+        delete(s.entries, id)
+        ok = false
+    }
+
+    switch {
+    case !ok:
+        s.entries[id] = idempotencyEntry{fingerprint: fp, expires: s.now().Add(s.ttl)}
+        return idempotencyNew, idempotencyEntry{}
+    case entry.fingerprint != fp:
+        return idempotencyMismatch, idempotencyEntry{}
+    case !entry.done:
+        return idempotencyInFlight, idempotencyEntry{}
+    default:
+        return idempotencyReplay, entry
+    }
+}
+
+func (s *IdempotencyStore) Complete(id string, status int, contentType, location string, body []byte) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
+    entry, ok := s.entries[id]
+    if !ok {
+        return
+    }
+    entry.done = true
+    entry.status = status
+    entry.contentType = contentType
+    entry.location = location
+    entry.body = body
+    s.entries[id] = entry
+}
+
+func (s *IdempotencyStore) Abandon(id string) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    delete(s.entries, id)
+}
+</code></pre>
+<p>The store&rsquo;s <code>Begin</code> is where the whole guarantee lives. It checks and records under a single lock, so when twenty identical requests arrive at once, exactly one is told it is new and the other nineteen are told it is in flight or a replay. This is the Chapter 6 atomic check-and-write, applied to a new problem.</p>
+<p>The middleware wraps a handler. It needs to capture what the handler wrote so it can store it, so it uses a writer that records the body as well as the status, built on the <code>responseRecorder</code> from Chapter 7.</p>
+<pre><code class="language-go">type captureWriter struct {
+    *responseRecorder
+    body bytes.Buffer
+}
+
+func (c *captureWriter) Write(b []byte) (int, error) {
+    c.body.Write(b)
+    return c.responseRecorder.Write(b)
+}
+
+func idempotent(store *IdempotencyStore, logger *slog.Logger) middleware {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            key := r.Header.Get(&quot;Idempotency-Key&quot;)
+            if key == &quot;&quot; {
+                next.ServeHTTP(w, r)
+                return
+            }
+            // Keys follow the same character rules as request IDs.
+            if !validRequestID(key) {
+                writeAPIError(w, r, logger, invalidArgument(&quot;request validation failed&quot;, FieldError{
+                    Field:   &quot;Idempotency-Key&quot;,
+                    Code:    &quot;INVALID_VALUE&quot;,
+                    Message: &quot;Idempotency-Key must be 1 to 64 letters, digits, hyphens, or underscores&quot;,
+                }))
+                return
+            }
+
+            identity, ok := identityFromContext(r.Context())
+            if !ok {
+                writeAPIError(w, r, logger, internalError(errors.New(&quot;idempotency requires authentication&quot;)))
+                return
+            }
+
+            r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+            body, err := io.ReadAll(r.Body)
+            if err != nil {
+                writeAPIError(w, r, logger, decodeError(err))
+                return
+            }
+            r.Body = io.NopCloser(bytes.NewReader(body))
+
+            fingerprint := sha256.Sum256([]byte(r.Method + &quot;\n&quot; + r.URL.RequestURI() + &quot;\n&quot; + string(body)))
+            id := identity.UserID + &quot;:&quot; + key
+
+            result, entry := store.Begin(id, fingerprint)
+            switch result {
+            case idempotencyReplay:
+                if entry.contentType != &quot;&quot; {
+                    w.Header().Set(&quot;Content-Type&quot;, entry.contentType)
+                }
+                if entry.location != &quot;&quot; {
+                    w.Header().Set(&quot;Location&quot;, entry.location)
+                }
+                w.Header().Set(&quot;Idempotent-Replayed&quot;, &quot;true&quot;)
+                w.WriteHeader(entry.status)
+                if _, err := w.Write(entry.body); err != nil {
+                    logger.WarnContext(r.Context(), &quot;write replayed response&quot;, slog.Any(&quot;error&quot;, err))
+                }
+                return
+            case idempotencyMismatch:
+                writeAPIError(w, r, logger, conflict(&quot;IDEMPOTENCY_KEY_REUSED&quot;, &quot;this Idempotency-Key was already used with a different request&quot;))
+                return
+            case idempotencyInFlight:
+                w.Header().Set(&quot;Retry-After&quot;, &quot;1&quot;)
+                writeAPIError(w, r, logger, conflict(&quot;IDEMPOTENCY_KEY_IN_PROGRESS&quot;, &quot;a request with this Idempotency-Key is still being processed&quot;))
+                return
+            }
+
+            completed := false
+            defer func() {
+                if !completed {
+                    store.Abandon(id)
+                }
+            }()
+
+            cw := &amp;captureWriter{responseRecorder: &amp;responseRecorder{ResponseWriter: w, status: http.StatusOK}}
+            next.ServeHTTP(cw, r)
+
+            if cw.status &lt; http.StatusOK || cw.status &gt;= http.StatusMultipleChoices {
+                return
+            }
+            store.Complete(id, cw.status, w.Header().Get(&quot;Content-Type&quot;), w.Header().Get(&quot;Location&quot;), cw.body.Bytes())
+            completed = true
+        })
+    }
+}
+</code></pre>
+<p>The <code>defer</code> is the quiet hero. If the handler panics, or returns anything other than a success, the deferred function removes the in-flight entry, so a failed first attempt can never leave a key stuck in the &ldquo;in progress&rdquo; state. That is the book&rsquo;s namesake pattern guarding an invariant: whatever path the function takes out, the cleanup runs.</p>
+<p>The middleware goes on the two endpoints with side effects that clients will want to retry, after authentication because it needs the identity:</p>
+<pre><code class="language-go">mux.Handle(&quot;POST /v1/tasks&quot;, auth(idem(s.handle(s.createTask))))
+mux.Handle(&quot;POST /v1/tasks/{id}/transition&quot;, auth(idem(s.handle(s.transitionTask))))
+</code></pre>
+<p>The key is optional. Making it mandatory would be safer, since the unsafe default is the one every careless client will use, but it would also break simple clients and curl commands. We choose compatibility, document the header prominently, and note the stricter alternative for services where duplicates are costly. The server gets one more dependency in its constructor, <code>NewServer(store, users, sessions, idempotency, logger)</code>, and the number of parameters is by now a complaint worth listening to. Chapter 17 addresses it.</p>
+<h2 id="the-routes-versioned">The Routes, Versioned</h2>
+<p>Here is the complete route table, as it stands at the end of Part II:</p>
+<pre><code class="language-go">func (s *Server) routes() http.Handler {
+    auth := requireAuth(s.sessions, s.users, s.logger)
+    admin := requireRole(s.logger, RoleAdmin)
+    idem := idempotent(s.idempotency, s.logger)
+
+    mux := http.NewServeMux()
+    mux.HandleFunc(&quot;GET /health&quot;, s.handle(s.health))
+
+    mux.HandleFunc(&quot;POST /v1/auth/register&quot;, s.handle(s.register))
+    mux.HandleFunc(&quot;POST /v1/auth/login&quot;, s.handle(s.login))
+    mux.Handle(&quot;POST /v1/auth/logout&quot;, auth(s.handle(s.logout)))
+
+    mux.Handle(&quot;GET /v1/users/me&quot;, auth(s.handle(s.me)))
+    mux.Handle(&quot;GET /v1/users&quot;, auth(admin(s.handle(s.listUsers))))
+
+    mux.Handle(&quot;POST /v1/tasks&quot;, auth(idem(s.handle(s.createTask))))
+    mux.Handle(&quot;GET /v1/tasks&quot;, auth(s.handle(s.listTasks)))
+    mux.Handle(&quot;GET /v1/tasks/{id}&quot;, auth(s.handle(s.getTask)))
+    mux.Handle(&quot;POST /v1/tasks/{id}/transition&quot;, auth(idem(s.handle(s.transitionTask))))
+
+    return chain(routerErrors(mux, s.logger), requestID, requestLogger(s.logger), recoverer(s.logger))
+}
+</code></pre>
+<h2 id="testing-the-contract">Testing the Contract</h2>
+<p>Pagination is the easiest place to write a convincing test, because the property is clear: walking every page must yield exactly the same tasks, in the same order, as one large request, with nothing repeated and nothing dropped.</p>
+<pre><code class="language-go">func TestPagination(t *testing.T) {
+    env := newTestEnv()
+    token := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+    for i := 0; i &lt; 5; i++ {
+        body := fmt.Sprintf(`{&quot;title&quot;:&quot;task %d&quot;}`, i)
+        if rec := sendAs(env.handler, token, http.MethodPost, &quot;/v1/tasks&quot;, &quot;application/json&quot;, body); rec.Code != http.StatusCreated {
+            t.Fatalf(&quot;create status = %d&quot;, rec.Code)
+        }
+    }
+
+    fetch := func(query string) taskPage {
+        t.Helper()
+        rec := sendAs(env.handler, token, http.MethodGet, &quot;/v1/tasks&quot;+query, &quot;&quot;, &quot;&quot;)
+        if rec.Code != http.StatusOK {
+            t.Fatalf(&quot;status = %d, body = %s&quot;, rec.Code, rec.Body)
+        }
+        var page taskPage
+        if err := json.NewDecoder(rec.Body).Decode(&amp;page); err != nil {
+            t.Fatalf(&quot;decode: %v&quot;, err)
+        }
+        return page
+    }
+
+    want := fetch(&quot;?limit=100&quot;)
+    if len(want.Items) != 5 || want.NextCursor != &quot;&quot; {
+        t.Fatalf(&quot;single page: %d items, next cursor %q&quot;, len(want.Items), want.NextCursor)
+    }
+
+    var got []Task
+    query := &quot;?limit=2&quot;
+    pages := 0
+    for {
+        page := fetch(query)
+        pages++
+        got = append(got, page.Items...)
+        if page.NextCursor == &quot;&quot; {
+            break
+        }
+        if pages &gt; 10 {
+            t.Fatal(&quot;pagination did not terminate&quot;)
+        }
+        query = &quot;?limit=2&amp;cursor=&quot; + url.QueryEscape(page.NextCursor)
+    }
+
+    if pages != 3 {
+        t.Fatalf(&quot;pages = %d, want 3&quot;, pages)
+    }
+    if len(got) != len(want.Items) {
+        t.Fatalf(&quot;paged items = %d, want %d&quot;, len(got), len(want.Items))
+    }
+    for i := range got {
+        if got[i].ID != want.Items[i].ID {
+            t.Fatalf(&quot;item %d = %s, want %s&quot;, i, got[i].ID, want.Items[i].ID)
+        }
+    }
+}
+
+func TestListParameterValidation(t *testing.T) {
+    env := newTestEnv()
+    token := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+
+    tests := []struct {
+        query     string
+        wantField string
+    }{
+        {&quot;?limit=0&quot;, &quot;limit&quot;},
+        {&quot;?limit=101&quot;, &quot;limit&quot;},
+        {&quot;?limit=abc&quot;, &quot;limit&quot;},
+        {&quot;?status=banana&quot;, &quot;status&quot;},
+        {&quot;?cursor=garbage&quot;, &quot;cursor&quot;},
+    }
+    for _, tt := range tests {
+        t.Run(tt.query, func(t *testing.T) {
+            rec := sendAs(env.handler, token, http.MethodGet, &quot;/v1/tasks&quot;+tt.query, &quot;&quot;, &quot;&quot;)
+            if rec.Code != http.StatusBadRequest {
+                t.Fatalf(&quot;status = %d, want %d&quot;, rec.Code, http.StatusBadRequest)
+            }
+            var body testErrorBody
+            if err := json.NewDecoder(rec.Body).Decode(&amp;body); err != nil {
+                t.Fatalf(&quot;decode: %v&quot;, err)
+            }
+            if len(body.Error.Details) != 1 || body.Error.Details[0].Field != tt.wantField {
+                t.Fatalf(&quot;details = %+v, want one entry for %q&quot;, body.Error.Details, tt.wantField)
+            }
+        })
+    }
+}
+</code></pre>
+<p>Idempotency needs a test for each row of the rules table, and one for the concurrent case, which is the one that justifies the whole design.</p>
+<pre><code class="language-go">func TestIdempotentCreate(t *testing.T) {
+    env := newTestEnv()
+    token := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+
+    post := func(key, body string) *httptest.ResponseRecorder {
+        req := httptest.NewRequest(http.MethodPost, &quot;/v1/tasks&quot;, strings.NewReader(body))
+        req.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+        req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+token)
+        if key != &quot;&quot; {
+            req.Header.Set(&quot;Idempotency-Key&quot;, key)
+        }
+        rec := httptest.NewRecorder()
+        env.handler.ServeHTTP(rec, req)
+        return rec
+    }
+    countTasks := func() int {
+        rec := sendAs(env.handler, token, http.MethodGet, &quot;/v1/tasks?limit=100&quot;, &quot;&quot;, &quot;&quot;)
+        var page taskPage
+        if err := json.NewDecoder(rec.Body).Decode(&amp;page); err != nil {
+            t.Fatalf(&quot;decode: %v&quot;, err)
+        }
+        return len(page.Items)
+    }
+
+    first := post(&quot;key-1&quot;, `{&quot;title&quot;:&quot;Write chapter one&quot;}`)
+    if first.Code != http.StatusCreated {
+        t.Fatalf(&quot;first status = %d&quot;, first.Code)
+    }
+
+    replay := post(&quot;key-1&quot;, `{&quot;title&quot;:&quot;Write chapter one&quot;}`)
+    if replay.Code != http.StatusCreated || replay.Header().Get(&quot;Idempotent-Replayed&quot;) != &quot;true&quot; {
+        t.Fatalf(&quot;replay: status = %d, replayed = %q&quot;, replay.Code, replay.Header().Get(&quot;Idempotent-Replayed&quot;))
+    }
+    if replay.Body.String() != first.Body.String() {
+        t.Fatalf(&quot;replayed body differs:\n%s\n%s&quot;, replay.Body, first.Body)
+    }
+    if replay.Header().Get(&quot;Location&quot;) != first.Header().Get(&quot;Location&quot;) {
+        t.Fatal(&quot;replayed Location header differs&quot;)
+    }
+    if got := countTasks(); got != 1 {
+        t.Fatalf(&quot;tasks after replay = %d, want 1&quot;, got)
+    }
+
+    if rec := post(&quot;key-1&quot;, `{&quot;title&quot;:&quot;A different task&quot;}`); rec.Code != http.StatusConflict {
+        t.Fatalf(&quot;reused key status = %d, want %d&quot;, rec.Code, http.StatusConflict)
+    }
+
+    post(&quot;&quot;, `{&quot;title&quot;:&quot;No key&quot;}`)
+    post(&quot;&quot;, `{&quot;title&quot;:&quot;No key&quot;}`)
+    if got := countTasks(); got != 3 {
+        t.Fatalf(&quot;tasks without keys = %d, want 3 in total&quot;, got)
+    }
+}
+
+func TestIdempotentCreateIsAtomicUnderConcurrency(t *testing.T) {
+    env := newTestEnv()
+    token := env.signUp(t, &quot;ada@example.com&quot;, &quot;correct horse&quot;)
+
+    const attempts = 20
+    var wg sync.WaitGroup
+    for i := 0; i &lt; attempts; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            req := httptest.NewRequest(http.MethodPost, &quot;/v1/tasks&quot;, strings.NewReader(`{&quot;title&quot;:&quot;race&quot;}`))
+            req.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+            req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+token)
+            req.Header.Set(&quot;Idempotency-Key&quot;, &quot;same-key&quot;)
+            env.handler.ServeHTTP(httptest.NewRecorder(), req)
+        }()
+    }
+    wg.Wait()
+
+    rec := sendAs(env.handler, token, http.MethodGet, &quot;/v1/tasks?limit=100&quot;, &quot;&quot;, &quot;&quot;)
+    var page taskPage
+    if err := json.NewDecoder(rec.Body).Decode(&amp;page); err != nil {
+        t.Fatalf(&quot;decode: %v&quot;, err)
+    }
+    if len(page.Items) != 1 {
+        t.Fatalf(&quot;%d concurrent requests with one key created %d tasks, want 1&quot;, attempts, len(page.Items))
+    }
+}
+</code></pre>
+<p>The last test is the proof. Twenty identical requests race, and exactly one task exists afterward. Run it repeatedly with <code>-race</code>.</p>
+<h2 id="the-contract-published">The Contract, Published</h2>
+<p>Part II ends with the contract in one place, which is what a client developer would actually read. First the endpoints.</p>
+<table>
+<thead>
+<tr>
+<th>Method and path</th>
+<th>Auth</th>
+<th>Idempotency key</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /health</code></td>
+<td>None</td>
+<td>n/a</td>
+<td>Process liveness</td>
+</tr>
+<tr>
+<td><code>POST /v1/auth/register</code></td>
+<td>None</td>
+<td>No</td>
+<td>Create an account</td>
+</tr>
+<tr>
+<td><code>POST /v1/auth/login</code></td>
+<td>None</td>
+<td>No</td>
+<td>Exchange credentials for a session token</td>
+</tr>
+<tr>
+<td><code>POST /v1/auth/logout</code></td>
+<td>Session</td>
+<td>No</td>
+<td>Revoke the session</td>
+</tr>
+<tr>
+<td><code>GET /v1/users/me</code></td>
+<td>Session</td>
+<td>n/a</td>
+<td>The caller&rsquo;s own profile</td>
+</tr>
+<tr>
+<td><code>GET /v1/users</code></td>
+<td>Admin</td>
+<td>n/a</td>
+<td>List users</td>
+</tr>
+<tr>
+<td><code>POST /v1/tasks</code></td>
+<td>Session</td>
+<td>Supported</td>
+<td>Create a task</td>
+</tr>
+<tr>
+<td><code>GET /v1/tasks</code></td>
+<td>Session</td>
+<td>n/a</td>
+<td>List the caller&rsquo;s tasks, paginated</td>
+</tr>
+<tr>
+<td><code>GET /v1/tasks/{id}</code></td>
+<td>Session</td>
+<td>n/a</td>
+<td>Fetch one task</td>
+</tr>
+<tr>
+<td><code>POST /v1/tasks/{id}/transition</code></td>
+<td>Session</td>
+<td>Supported</td>
+<td>Change a task&rsquo;s status</td>
+</tr>
+</tbody>
+</table>
+<p>And the complete catalog of error codes, the one Chapter 8 promised and could not yet write. Codes are added over time, never renamed or reused.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>INVALID_ARGUMENT</code></td>
+<td>400</td>
+<td>Malformed request or failed validation, with <code>details</code></td>
+</tr>
+<tr>
+<td><code>UNAUTHENTICATED</code></td>
+<td>401</td>
+<td>Missing, invalid, or expired token</td>
+</tr>
+<tr>
+<td><code>INVALID_CREDENTIALS</code></td>
+<td>401</td>
+<td>Wrong email or password</td>
+</tr>
+<tr>
+<td><code>FORBIDDEN</code></td>
+<td>403</td>
+<td>Authenticated, but not permitted</td>
+</tr>
+<tr>
+<td><code>NOT_FOUND</code></td>
+<td>404</td>
+<td>Resource or route does not exist, or is not visible to the caller</td>
+</tr>
+<tr>
+<td><code>METHOD_NOT_ALLOWED</code></td>
+<td>405</td>
+<td>The path exists, but not for this method</td>
+</tr>
+<tr>
+<td><code>ALREADY_EXISTS</code></td>
+<td>409</td>
+<td>A unique value is already taken</td>
+</tr>
+<tr>
+<td><code>INVALID_TRANSITION</code></td>
+<td>409</td>
+<td>The status change is not allowed from the current state</td>
+</tr>
+<tr>
+<td><code>IDEMPOTENCY_KEY_REUSED</code></td>
+<td>409</td>
+<td>The key was used with a different request</td>
+</tr>
+<tr>
+<td><code>IDEMPOTENCY_KEY_IN_PROGRESS</code></td>
+<td>409</td>
+<td>The first request with this key is still running</td>
+</tr>
+<tr>
+<td><code>PAYLOAD_TOO_LARGE</code></td>
+<td>413</td>
+<td>The body exceeds the size limit</td>
+</tr>
+<tr>
+<td><code>UNSUPPORTED_MEDIA_TYPE</code></td>
+<td>415</td>
+<td>The body is not JSON</td>
+</tr>
+<tr>
+<td><code>INTERNAL</code></td>
+<td>500</td>
+<td>An unexpected failure, with no detail exposed</td>
+</tr>
+</tbody>
+</table>
+<p>Finally, the three rules of the contract: clients must ignore unknown fields in responses, must treat unknown error codes as a generic failure of their HTTP status category, and must treat cursors as opaque strings.</p>
+<h2 id="what-is-still-wrong">What Is Still Wrong</h2>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Where it is fixed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Idempotency entries, like sessions, are never swept</td>
+<td>Chapter 25</td>
+</tr>
+<tr>
+<td>A key&rsquo;s stored response lives only in one process&rsquo;s memory</td>
+<td>Part III</td>
+</tr>
+<tr>
+<td>The API has no rate limits</td>
+<td>Chapter 31</td>
+</tr>
+<tr>
+<td><code>GET /tasks</code> cannot be sorted or searched</td>
+<td>When a client needs it</td>
+</tr>
+<tr>
+<td>There is no machine-readable description of the API</td>
+<td>A reasonable addition once clients appear</td>
+</tr>
+</tbody>
+</table>
+<h2 id="engineering-lens">Engineering Lens</h2>
+<p><strong>What problem did we solve?</strong> We made the API safe to depend on: bounded responses, an extensible envelope, a version, consistent conventions, and a way for clients to retry without duplicating effects.</p>
+<p><strong>What complexity did we introduce?</strong> Cursor encoding, an idempotency store with its own lifecycle, and a more disciplined contract that now constrains us as much as it protects clients.</p>
+<p><strong>What failure modes appeared?</strong> Missed rows from timestamp ties, stuck idempotency keys after a failure, a key reused with a different request, and clients that depend on behavior we never promised.</p>
+<p><strong>What would break at 10× scale?</strong> The idempotency and session stores, both held in one process&rsquo;s memory. A second instance would not see the first&rsquo;s keys, and a client&rsquo;s retry could land on a different instance and create a duplicate. Shared state moves to a shared store.</p>
+<p><strong>When should we not build this much contract?</strong> For an internal API consumed by one team that deploys in lockstep with you, versioning and idempotency keys are overhead. The cost of a contract is justified by the number of callers you cannot coordinate with.</p>
+<h2 id="exercises">Exercises</h2>
+<ol>
+<li>Walk Forge&rsquo;s API with <code>curl</code>: register, log in, create a task with an <code>Idempotency-Key</code>, repeat the exact request, and compare the two responses. Then reuse the key with a different title. Explain each response in terms of the rules table.</li>
+<li>Write down three changes you might want to make to the API and classify each as breaking or safe using this chapter&rsquo;s table. For each breaking one, describe what a <code>v2</code> coexisting with <code>v1</code> would require.</li>
+<li>Create two tasks with exactly the same <code>created_at</code> by constructing them directly in a store test. Page through them with <code>limit=1</code>. Does anything repeat or go missing? Explain what the ID tie-breaker guarantees and what it does not.</li>
+<li>The idempotency middleware stores only successful responses. Describe a scenario where storing a failure would be the better design, and what the client would then need to do to retry intentionally.</li>
+<li>Make <code>Idempotency-Key</code> mandatory on <code>POST /v1/tasks</code>. List every consequence for existing tests and clients, and decide whether the added safety is worth it for Forge.</li>
+</ol>
+<h2 id="what-part-ii-gave-you">What Part II Gave You</h2>
+<p>Six chapters ago, Forge was a handler that wrote JSON. It is now an API you could hand to a stranger: a protocol you understand down to the bytes, handlers with one job, middleware that gives every request an identity and a record, a contract for failure, a way to know who is asking, and a design that can grow without breaking its callers.</p>
+<p>It also has a flaw that every chapter in this part has quietly pointed at. Look at everything Forge remembers: tasks, users, sessions, and idempotency keys. All of it lives in the memory of one process.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What a restart destroys</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tasks</td>
+<td>The only copy of the user&rsquo;s work</td>
+</tr>
+<tr>
+<td>Users</td>
+<td>Every account. Nobody can ever log in again</td>
+</tr>
+<tr>
+<td>Sessions</td>
+<td>Every login. Inconvenient, and recoverable by logging in again</td>
+</tr>
+<tr>
+<td>Idempotency keys</td>
+<td>Retry protection. Briefly dangerous, then harmless</td>
+</tr>
+</tbody>
+</table>
+<p>These four kinds of state need four different levels of care, and they are not all equally precious. Part III begins with the question that sorts them: <em>where does state actually live, and which copy is the truth?</em></p>
+    <nav class="pager" aria-label="Chapter"><a href="/read/authentication-and-authorization/">← Chapter 9</a><span></span></nav>
+    <p class="cite">Cite this chapter: Abir Sarkar, “Chapter 10: API Design That Survives Change,” <em>Defer Nothing: Building Backend Systems in Go</em>, goholic.in, 2026-10-03, https://goholic.in/read/api-design-that-survives-change/.</p>
+  </article>
+  <aside class="toc" aria-label="On this page">
+    <p class="kicker">On this page</p>
+    <ol><li><a href="#why-apis-are-hard-to-change">Why APIs Are Hard to Change</a></li><li><a href="#what-counts-as-a-breaking-change">What Counts as a Breaking Change</a></li><li><a href="#naming-and-resource-modeling">Naming and Resource Modeling</a></li><li><a href="#pagination-never-return-everything">Pagination: Never Return Everything</a></li><li><a href="#versioning">Versioning</a></li><li><a href="#idempotency-safe-retries">Idempotency: Safe Retries</a></li><li><a href="#the-routes-versioned">The Routes, Versioned</a></li><li><a href="#testing-the-contract">Testing the Contract</a></li><li><a href="#the-contract-published">The Contract, Published</a></li><li><a href="#what-is-still-wrong">What Is Still Wrong</a></li><li><a href="#engineering-lens">Engineering Lens</a></li><li><a href="#exercises">Exercises</a></li><li><a href="#what-part-ii-gave-you">What Part II Gave You</a></li></ol>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div>Defer Nothing · Abir Sarkar · Kolkata</div>
+  <div><a href="https://www.linkedin.com/in/abir-sarkar-dev/">LinkedIn</a> · <a href="https://github.com/anti-gravity-bit">GitHub</a> · <a href="/llms.txt">llms.txt</a></div>
+</footer>
+
+<script>
+const root = document.documentElement;
+const saved = localStorage.getItem("dn-theme");
+if (saved) root.dataset.theme = saved;
+document.getElementById("theme")?.addEventListener("click", () => {
+  const next = root.dataset.theme === "dark" ? "light" : root.dataset.theme === "light" ? "dark" : (matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "dark");
+  root.dataset.theme = next;
+  localStorage.setItem("dn-theme", next);
+});
+const bar = document.querySelector(".progress");
+if (bar) addEventListener("scroll", () => {
+  const h = document.documentElement.scrollHeight - innerHeight;
+  bar.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+}, {passive: true});
+</script>
+</body></html>

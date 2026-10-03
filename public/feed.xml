@@ -3,7 +3,7 @@
 <channel>
   <title>Defer Nothing</title>
   <link>https://goholic.in/</link>
-  <description>Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.</description>
+  <description>Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction, Part I, and Part II free on goholic.in.</description>
   <language>en-in</language>
   <item>
   <title>Introduction</title>
@@ -39,6 +39,48 @@
   <guid>https://goholic.in/read/the-first-go-service/</guid>
   <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
   <description>The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 5: HTTP Without the Magic</title>
+  <link>https://goholic.in/read/http-without-the-magic/</link>
+  <guid>https://goholic.in/read/http-without-the-magic/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>HTTP without the framework: message bytes, methods as promises, status codes, and a stricter POST /tasks that rejects the wrong type, unknown fields, and oversized bodies.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 6: Building Handlers</title>
+  <link>https://goholic.in/read/building-handlers/</link>
+  <guid>https://goholic.in/read/building-handlers/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 7: Routing and Middleware</title>
+  <link>https://goholic.in/read/routing-and-middleware/</link>
+  <guid>https://goholic.in/read/routing-and-middleware/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>Request IDs, access logs, panic recovery, and JSON for the router&#x27;s own 404 and 405. The order of the stack decides which layer can see a failure.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 8: Validation and Error Contracts</title>
+  <link>https://goholic.in/read/validation-and-error-contracts/</link>
+  <guid>https://goholic.in/read/validation-and-error-contracts/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 9: Authentication and Authorization</title>
+  <link>https://goholic.in/read/authentication-and-authorization/</link>
+  <guid>https://goholic.in/read/authentication-and-authorization/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.</description>
+  <author>Abir Sarkar</author>
+</item><item>
+  <title>Chapter 10: API Design That Survives Change</title>
+  <link>https://goholic.in/read/api-design-that-survives-change/</link>
+  <guid>https://goholic.in/read/api-design-that-survives-change/</guid>
+  <pubDate>Sat, 03 Oct 2026 00:00:00 +0530</pubDate>
+  <description>Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.</description>
   <author>Abir Sarkar</author>
 </item>
 </channel>

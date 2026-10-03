@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Defer Nothing: Building Backend Systems in Go · Abir Sarkar</title>
-<meta name="description" content="Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.">
+<meta name="description" content="Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction, Part I, and Part II free on goholic.in.">
 <meta name="author" content="Abir Sarkar">
 <link rel="canonical" href="https://goholic.in/">
 <meta name="theme-color" content="#122e24">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <meta property="og:site_name" content="Defer Nothing">
 <meta property="og:title" content="Defer Nothing: Building Backend Systems in Go · Abir Sarkar">
-<meta property="og:description" content="Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.">
+<meta property="og:description" content="Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction, Part I, and Part II free on goholic.in.">
 <meta property="og:url" content="https://goholic.in/">
 <meta property="og:type" content="book">
 <meta property="og:image" content="https://goholic.in/og.png">
@@ -19,7 +19,7 @@
 <meta property="og:locale" content="en_IN">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Defer Nothing: Building Backend Systems in Go · Abir Sarkar">
-<meta name="twitter:description" content="Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.">
+<meta name="twitter:description" content="Defer Nothing is Abir Sarkar&#x27;s practical book on designing, building, testing, and operating production backend services in Go. Read the introduction, Part I, and Part II free on goholic.in.">
 <meta name="twitter:image" content="https://goholic.in/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Book", "@id": "https://goholic.in/#book", "name": "Defer Nothing", "alternateName": "Building Backend Systems in Go", "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "url": "https://goholic.in/", "inLanguage": "en", "bookFormat": "https://schema.org/EBook", "datePublished": "2026-10-03", "dateModified": "2026-10-03", "description": "Defer Nothing is Abir Sarkar's practical book on designing, building, testing, and operating production backend services in Go. Read the introduction and Part I on goholic.in.", "publisher": {"@id": "https://goholic.in/author/#abir-sarkar"}, "isAccessibleForFree": true, "image": "https://goholic.in/og.png"}, {"@type": "WebSite", "name": "Defer Nothing", "url": "https://goholic.in/", "inLanguage": "en", "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "potentialAction": {"@type": "ReadAction", "target": "https://goholic.in/read/introduction/"}}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is Defer Nothing?", "acceptedAnswer": {"@type": "Answer", "text": "Defer Nothing is a practical book by Abir Sarkar about designing, building, testing, deploying, and operating production backend services in Go. The title is a working habit: decide how a service fails when you decide how it works."}}, {"@type": "Question", "name": "Who is the book for?", "acceptedAnswer": {"@type": "Answer", "text": "Readers comfortable with basic programming who want a path from a first Go service to production. Prior Go experience is not required. Junior and mid-level backend engineers, and experienced developers looking for a structured refresher, are the intended audience."}}, {"@type": "Question", "name": "What can I read now?", "acceptedAnswer": {"@type": "Answer", "text": "The introduction and Part I, chapters 1 to 4, are published on goholic.in. Part I covers what a backend is, tracing a request, designing Forge before coding, and the first Go service."}}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "Person", "@id": "https://goholic.in/author/#abir-sarkar", "name": "Abir Sarkar", "url": "https://goholic.in/author/", "jobTitle": "Senior Backend System Engineer", "worksFor": {"@type": "Organization", "name": "Anhad Technocrafts"}, "homeLocation": {"@type": "Place", "name": "Kolkata, West Bengal, India"}, "sameAs": ["https://www.linkedin.com/in/abir-sarkar-dev/", "https://github.com/anti-gravity-bit"], "description": "Senior Backend System Engineer in Kolkata. Writes and builds production backend systems in Go and Python, with PostgreSQL, SaaS APIs, and cloud and mobile-backend integration."}, {"@type": "Book", "@id": "https://goholic.in/#book", "name": "Defer Nothing", "alternateName": "Building Backend Systems in Go", "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "url": "https://goholic.in/", "inLanguage": "en", "bookFormat": "https://schema.org/EBook", "datePublished": "2026-10-03", "dateModified": "2026-10-04", "description": "Defer Nothing is Abir Sarkar's practical book on designing, building, testing, and operating production backend services in Go. Read the introduction, Part I, and Part II free on goholic.in.", "publisher": {"@id": "https://goholic.in/author/#abir-sarkar"}, "isAccessibleForFree": true, "image": "https://goholic.in/og.png"}, {"@type": "WebSite", "name": "Defer Nothing", "url": "https://goholic.in/", "inLanguage": "en", "author": {"@id": "https://goholic.in/author/#abir-sarkar"}, "potentialAction": {"@type": "ReadAction", "target": "https://goholic.in/read/introduction/"}}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is Defer Nothing?", "acceptedAnswer": {"@type": "Answer", "text": "Defer Nothing is a practical book by Abir Sarkar about designing, building, testing, deploying, and operating production backend services in Go. The title is a working habit: decide how a service fails when you decide how it works."}}, {"@type": "Question", "name": "Who is the book for?", "acceptedAnswer": {"@type": "Answer", "text": "Readers comfortable with basic programming who want a path from a first Go service to production. Prior Go experience is not required. Junior and mid-level backend engineers, and experienced developers looking for a structured refresher, are the intended audience."}}, {"@type": "Question", "name": "What can I read now?", "acceptedAnswer": {"@type": "Answer", "text": "The introduction, Part I (chapters 1 to 4), and Part II (chapters 5 to 10) are published on goholic.in. Part II covers HTTP itself, handlers, middleware, error contracts, authentication, and an API designed to survive change."}}]}]}</script>
 </head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
@@ -46,7 +46,7 @@
 <main id="content" class="shell">
   <section class="hero">
     <div>
-      <p class="kicker">A book in progress · Part I published 2026-10-03</p>
+      <p class="kicker">A book in progress · Parts I and II published</p>
       <h1>Defer Nothing</h1>
       <p class="subtitle">Building Backend Systems in Go</p>
       <p class="lede">Go makes the first server feel solved. Then a retry, a collision, a slow database, or a deploy at the wrong moment arrives. This book is about being prepared. Decide how it fails when you decide how it works.</p>
@@ -57,9 +57,9 @@
       <p class="meta">By <a href="/author/">Abir Sarkar</a>, Senior Backend System Engineer, Kolkata. Free to read on any device.</p>
     </div>
     <aside class="cover-card">
-      <p class="kicker" style="color:#e7c2b4">The running project</p>
+      <p class="kicker" style="color:#e0a48f">The running project</p>
       <p>Forge, a task API, begins with three endpoints and grows only when the system needs the next idea.</p>
-      <p>Part I is the thinking: what a backend is, how a request moves, what to decide before code, and the first service that makes those decisions visible.</p>
+      <p>Part I is the thinking. Part II is the protocol: HTTP without the magic, handlers, middleware, errors, identity, and a contract that can change without breaking callers.</p>
       <p><a href="https://www.linkedin.com/in/abir-sarkar-dev/">Abir Sarkar on LinkedIn</a></p>
     </aside>
   </section>
@@ -75,11 +75,11 @@
   </section>
   <section class="grid-2">
     <div>
-      <h2>Read Part I</h2>
-      <div class="chapter-list"><a class="chapter-card" href="/read/introduction/">
+      <h2>Read the book</h2>
+      <h3 class="kicker" style="margin-top:1.4rem">Before the work</h3><div class="chapter-list"><a class="chapter-card" href="/read/introduction/">
   <div class="kicker">Introduction</div>
   <div><strong>Introduction</strong><p class="meta">875 words · 4 min · Why this book exists: Go gets you to real backend problems faster, and Defer Nothing is the habit of deciding how a service fails at the moment you decide how it works.</p></div>
-</a><a class="chapter-card" href="/read/what-is-a-backend/">
+</a></div><h3 class="kicker" style="margin-top:1.4rem">Part I · Thinking in Backends</h3><div class="chapter-list"><a class="chapter-card" href="/read/what-is-a-backend/">
   <div class="kicker">Chapter 1</div>
   <div><strong>Chapter 1: What Is a Backend, Really?</strong><p class="meta">2,262 words · 10 min · A backend is a state-transforming system, not a request handler. Chapter 1 maps the seven stages of a request and the eight concerns that follow.</p></div>
 </a><a class="chapter-card" href="/read/from-request-to-response/">
@@ -91,6 +91,24 @@
 </a><a class="chapter-card" href="/read/the-first-go-service/">
   <div class="kicker">Chapter 4</div>
   <div><strong>Chapter 4: The First Go Service</strong><p class="meta">3,249 words · 14 min · The smallest Forge service that honors the Chapter 3 design: Task, an in-memory store, stdlib handlers, timeouts, tests, and an honest list of what it still gets wrong.</p></div>
+</a></div><h3 class="kicker" style="margin-top:1.4rem">Part II · HTTP and API Engineering</h3><div class="chapter-list"><a class="chapter-card" href="/read/http-without-the-magic/">
+  <div class="kicker">Chapter 5</div>
+  <div><strong>Chapter 5: HTTP Without the Magic</strong><p class="meta">2,835 words · 12 min · HTTP without the framework: message bytes, methods as promises, status codes, and a stricter POST /tasks that rejects the wrong type, unknown fields, and oversized bodies.</p></div>
+</a><a class="chapter-card" href="/read/building-handlers/">
+  <div class="kicker">Chapter 6</div>
+  <div><strong>Chapter 6: Building Handlers</strong><p class="meta">2,835 words · 12 min · A transition endpoint grows into five jobs, then is pulled apart: lifecycle rules, an atomic store update, and one error translator, so a handler only decodes, validates, calls, and responds.</p></div>
+</a><a class="chapter-card" href="/read/routing-and-middleware/">
+  <div class="kicker">Chapter 7</div>
+  <div><strong>Chapter 7: Routing and Middleware</strong><p class="meta">3,342 words · 15 min · Request IDs, access logs, panic recovery, and JSON for the router&#x27;s own 404 and 405. The order of the stack decides which layer can see a failure.</p></div>
+</a><a class="chapter-card" href="/read/validation-and-error-contracts/">
+  <div class="kicker">Chapter 8</div>
+  <div><strong>Chapter 8: Validation and Error Contracts</strong><p class="meta">3,418 words · 15 min · One error shape for every failure: a stable code, a human message, field details, and a request ID. The private cause reaches the logs and never the client.</p></div>
+</a><a class="chapter-card" href="/read/authentication-and-authorization/">
+  <div class="kicker">Chapter 9</div>
+  <div><strong>Chapter 9: Authentication and Authorization</strong><p class="meta">4,996 words · 22 min · Users, salted bcrypt passwords, opaque session tokens, and task ownership. Authentication is middleware. Authorization is asked only once the resource is known.</p></div>
+</a><a class="chapter-card" href="/read/api-design-that-survives-change/">
+  <div class="kicker">Chapter 10</div>
+  <div><strong>Chapter 10: API Design That Survives Change</strong><p class="meta">4,780 words · 21 min · Versioning, cursor pagination, and idempotency keys so a retry does not duplicate an effect. Part II ends with the contract a client developer would actually read.</p></div>
 </a></div>
     </div>
     <aside>
@@ -104,7 +122,7 @@
         <h2>Questions readers ask</h2>
         <details open><summary>What is Defer Nothing?</summary><p>A practical book about designing, building, testing, deploying, and operating production backend services in Go. The title is a habit: decide how it fails when you decide how it works.</p></details>
         <details><summary>Who is it for?</summary><p>You should be comfortable with variables, functions, and reading someone else's code. Prior Go is not required. Junior and mid-level backend engineers get a path from first service to production. Experienced developers can use it as a refresher and a checklist.</p></details>
-        <details><summary>What can I read now?</summary><p>The introduction and Part I, chapters 1 to 4. Later parts, from HTTP itself through persistence, rules, concurrency, and production, will be added here as they are written.</p></details>
+        <details><summary>What can I read now?</summary><p>The introduction, Part I (chapters 1 to 4), and Part II (chapters 5 to 10). Part II takes Forge from a first service to an API with middleware, an error contract, sessions, and idempotent writes. Later parts, from persistence through production, will be added as they are written.</p></details>
       </div>
     </aside>
   </section>
